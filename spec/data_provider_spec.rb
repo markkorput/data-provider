@@ -25,10 +25,16 @@ describe DataProvider::Base do
   end
 
   describe "#has_provider?" do
-    it 'provides the has_provider? method' do
+    it 'provides the has_provider? instance method' do
       expect(@provider.has_provider?(:sum)).to be true
       expect(@provider.has_provider?(:static)).to be true
       expect(@provider.has_provider?(:modulus)).to be false
+    end
+
+    it 'provides the has_provider? class method' do
+      expect(ProviderClass.respond_to?(:has_provider?)).to eq true
+      expect(ProviderClass.has_provider?(:sum)).to eq true
+      expect(ProviderClass.has_provider?(:divid)).to eq false
     end
   end
 
@@ -97,6 +103,127 @@ describe DataProvider::Base do
 
     it "has a get_data alias" do
       expect(@provider.get_data(:array)).to eq @provider.given(:array)
+    end
+  end
+
+  describe "#provides" do
+    class SimpleProviders
+      include DataProvider::Base
+      provides({
+        :name => 'Paddy',
+        'instrument' => :bass
+      })
+    end
+
+    it "lets you request all currently available simple providers when called without a parameter" do
+      expect(SimpleProviders.provides).to eq({
+        :name => 'Paddy',
+        'instrument' => :bass
+      })
+    end
+
+    it "lets you define simple providers" do
+      expect(SimpleProviders.new.take(:name)).to eq 'Paddy'
+      expect(SimpleProviders.new.take('instrument')).to eq :bass
+    end
+
+    it "works with has_provider?" do
+      expect(SimpleProviders.has_provider?(:name)).to eq true
+      expect(SimpleProviders.new.has_provider?('name')).to eq false
+      expect(SimpleProviders.has_provider?('instrument')).to eq true
+      expect(SimpleProviders.new.has_provider?(:instrument)).to eq false
+    end
+
+    it "lets you overwrite existing simple providers" do
+      SimpleProviders.provides({:name => 'Erik'})
+      expect(SimpleProviders.new.take(:name)).to eq 'Erik'
+    end
+
+    it "lets you write linked notation" do
+      expect(SimpleProviders.provides({:name => 'Lane'}).new.take(:name)).to eq 'Lane'
+    end
+  end
+
+  describe "#add" do
+    module OddProviders
+      include DataProvider::Base
+      provides({1 => 'one'})
+      provider :three do 3 end
+    end
+
+    module OddOverwriteProviders
+      include DataProvider::Base
+      provides({1 => 'Uno', :five => 555})
+      provider :three do :tres end
+    end
+
+    class BasicProviders
+      include DataProvider::Base
+      provides({2 => '1'})
+      provider :four do '4' end
+      add OddProviders
+    end
+
+    it "lets you add providers from another module" do
+      expect(BasicProviders.has_provider?(1)).to eq true
+      expect(BasicProviders.has_provider?(2)).to eq true
+      expect(BasicProviders.has_provider?(:three)).to eq true
+      expect(BasicProviders.has_provider?(:four)).to eq true
+      # expect(BasicProviders.new.take(1)).to eq 'one'
+      expect(BasicProviders.new.take(:three)).to eq 3
+    end
+
+    it "lets you add providers from another module at runtime" do
+      expect(BasicProviders.has_provider?(:five)).to eq false
+      BasicProviders.add(OddOverwriteProviders)
+      expect(BasicProviders.has_provider?(:five)).to eq true
+    end
+
+    # for the following test the providers of OddOverwriteProviders
+    # have already been added (by the previous test)
+    it "lets overwrite providers" do
+      expect(BasicProviders.new.take(1)).to eq 'Uno'
+      expect(BasicProviders.new.take(:three)).to eq :tres
+    end
+  end
+
+  describe "#add_scoped" do
+    module ChildProviders
+      include DataProvider::Base
+      provider :name do "child" end
+    end
+
+    module GrandchildProviders
+      include DataProvider::Base
+      provider :name do "grandchild" end
+      provider [:age] do 1 end
+      provides({
+        :mommy => 'Wilma',
+        :daddy => 'Fret'
+      })
+    end
+
+    class ProviderKlass
+      include DataProvider::Base
+      provider :parent do 'parent' end
+      add_scoped ChildProviders, :scope => :child
+      add_scoped GrandchildProviders, :scope => [:child, :child]
+    end
+
+    it 'let you array-prefix the providers of an included module' do
+      expect(ProviderKlass.has_provider?(:parent)).to eq true
+      expect(ProviderKlass.has_provider?(:name)).to eq false
+      expect(ProviderKlass.has_provider?([:child, :name])).to eq true
+      expect(ProviderKlass.has_provider?([:child, :age])).to eq false
+      expect(ProviderKlass.has_provider?([:child, :child, :name])).to eq true
+      expect(ProviderKlass.has_provider?([:child, :child, :age])).to eq true
+      expect(ProviderKlass.has_provider?([:child, :child, :mommy])).to eq true
+      expect(ProviderKlass.has_provider?([:child, :child, :daddy])).to eq true
+      expect(ProviderKlass.new.take([:child, :name])).to eq 'child'
+      expect(ProviderKlass.new.take([:child, :child, :name])).to eq 'grandchild'
+      expect(ProviderKlass.new.take([:child, :child, :age])).to eq 1
+      expect(ProviderKlass.new.take([:child, :child, :mommy])).to eq 'Wilma'
+      expect(ProviderKlass.new.take([:child, :child, :daddy])).to eq 'Fret'
     end
   end
 end

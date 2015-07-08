@@ -1,5 +1,5 @@
 module DataProvider
-  class SingleProvider
+  class Provider
     attr_reader :options
     attr_reader :identifier
     attr_reader :block
@@ -12,5 +12,5 @@ module DataProvider
 
     alias_method :id, :identifier
 
-  end # module SingleProvider
+  end # module Provider
 end # module DataProvider
