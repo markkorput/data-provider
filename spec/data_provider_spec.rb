@@ -239,6 +239,18 @@ describe DataProvider::Base do
       expect(klass.has_provider?(:message)).to eq false
       expect(klass.new.take(:message)).to eq "This provider don't exist!"
     end
+
+    it "provides the missing provider id through the private missing_provider method" do
+      klass = Class.new Object do
+        include DataProvider::Base
+        provider_missing do
+          "Missing #{missing_provider}"
+        end
+      end
+
+      expect(klass.new.take(:something)).to eq 'Missing something'
+      expect{klass.new.missing_provider}.to raise_error(NoMethodError)
+    end
   end
 end
 
