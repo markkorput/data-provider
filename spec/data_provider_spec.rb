@@ -226,6 +226,20 @@ describe DataProvider::Base do
       expect(ProviderKlass.new.take([:child, :child, :daddy])).to eq 'Fret'
     end
   end
+
+  describe "provider_missing" do
+    it "lets you define a default fallback provider" do
+      klass = Class.new Object do
+        include DataProvider::Base
+        provider_missing do
+          "This provider don't exist!"
+        end
+      end
+
+      expect(klass.has_provider?(:message)).to eq false
+      expect(klass.new.take(:message)).to eq "This provider don't exist!"
+    end
+  end
 end
 
 describe "Adding additional providers" do

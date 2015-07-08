@@ -77,6 +77,17 @@ module DataProvider
         end
       end
 
+      def provider_missing &block
+        raise "DataProvider::Base#provider_missing expects a block as an argument" if !block_given?
+        @data_provider ||= {}
+        @data_provider[:provider_missing] = block
+      end
+
+      def fallback_provider
+        block = (@data_provider || {})[:provider_missing]
+        block.nil? ? nil : Provider.new(nil, nil, block)
+      end
+
       private
 
       def add_provider(identifier, opts = {}, block = nil)
@@ -107,9 +118,9 @@ module DataProvider
 
       def take(id)
         return self.class.provides[id] if self.class.provides.has_key?(id)
-        provider = self.class.get_provider(id) #, :data => @data)
+        provider = self.class.get_provider(id) || self.class.fallback_provider #, :data => @data)
         raise ProviderMissingException.new(:message=>"Data provider tried to take data from missing provider.", :provider_id => id) if provider.nil?
-        return instance_eval(&provider.block) 
+        return instance_eval(&provider.block)
       end
 
       def try_take(id)

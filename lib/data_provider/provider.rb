@@ -12,5 +12,9 @@ module DataProvider
 
     alias_method :id, :identifier
 
+    def requirements
+      [options[:requires]].flatten.compact
+    end
+
   end # module Provider
 end # module DataProvider
