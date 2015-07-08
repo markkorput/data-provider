@@ -38,9 +38,8 @@ describe DataProvider::Base do
       expect(@provider.take(:static)).to eq 'StaticValue'
     end
 
-    it "has a get_data alias for take" do
-      expect(@provider.get_data(:sum)).to eq @provider.take(:sum)
-      expect(@provider.get_data(:static)).to eq @provider.take(:static)
+    it 'raise a ProviderMissingException when attempting to take from unknown provider' do
+      expect{@provider.take(:unknown)}.to raise_error(DataProvider::ProviderMissingException)
     end
   end
 
@@ -73,17 +72,31 @@ describe DataProvider::Base do
     end
 
     it "allows for linked notation" do
-      expect(@provider.give!(:array => [-1, -4]).take(:sum)).to eq -5
+      expect(@provider.give.give!(:array => [-1, -4]).take(:sum)).to eq -5
     end
 
     it "has an add_scope! alias" do
-      @provider.add_scope!(:array => [-1, -4])
-      expect(@provider.get_data(:sum)).to eq -5
+      provider = @provider.add_scope()
+      provider.add_scope!(:array => [-1, -4])
+      expect(provider.given(:array)).to eq [-1,-4]
+      expect(provider.take(:sum)).to eq -5
     end
 
     it "has an add_data! alias" do
-      @provider.add_data!(:array => [5, 5])
-      expect(@provider.get_data(:sum)).to eq 10
+      scoped_provider = @provider.add_data(:array => []).add_data!(:array => [5, 5])
+      expect(scoped_provider.get_data(:array)).to eq [5,5]
+      expect(scoped_provider.take(:sum)).to eq 10
+    end
+  end
+
+  describe "#given" do 
+    it "has a given method to get given data" do
+      expect(@provider.given(:array)).to eq [1,2,4]
+      expect(@provider.give(:array => 'array').given(:array)).to eq 'array'
+    end
+
+    it "has a get_data alias" do
+      expect(@provider.get_data(:array)).to eq @provider.given(:array)
     end
   end
 end

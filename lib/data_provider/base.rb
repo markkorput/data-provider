@@ -1,5 +1,9 @@
+require 'logger'
 
 module DataProvider
+
+  class ProviderMissingException < Exception
+  end
 
   module Base
 
@@ -31,7 +35,7 @@ module DataProvider
       end
 
       def has_provider?(identifier)
-        !single_provider(identifier).nil?
+        single_provider(identifier) != nil
       end
 
       def single_provider(id, opts = {})
@@ -97,13 +101,12 @@ module DataProvider
         #   logger.warn "Can't find provider: #{id.inspect}"
         #   return nil
         # end
+        raise ProviderMissingException.new(:message=>"Data provider tried to take data from missing provider.", :provider_id => id) if single_provider.nil?
         return instance_eval(&single_provider.block) 
       end
 
-      alias :get_data :take
-
       def try_take(id)
-        if !self.class.has_provider?(id)
+        if !self.has_provider?(id)
           logger.debug "Try for missing provider: #{id.inspect}"
           return nil
         end
@@ -117,6 +120,8 @@ module DataProvider
         # TODO: raise?
         return nil
       end
+
+      alias :get_data :given
 
       def give(_data = {})
         return self.class.new(options.merge(:data => data.merge(_data)))
