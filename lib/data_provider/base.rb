@@ -12,6 +12,16 @@ module DataProvider
 
     module ClassMethods
 
+      def provides simple_provides = nil
+        if simple_provides
+          @data_provider ||= {}
+          @data_provider[:provides] ||= {}
+          @data_provider[:provides].merge!(simple_provides)
+        end
+        # no data given? just return existing hash
+        (@data_provider || {})[:provides] || {}
+      end
+
       def provider identifier, opts = {}, &block
         add_provider(identifier, opts, block_given? ? block : nil)
       end
@@ -45,6 +55,10 @@ module DataProvider
           definition[0] = [opts[:scope]].flatten.compact + definition[0] if opts[:scope]
           add_provider(*definition)
         end
+
+        (data[:provides] || {}).each_pair do |key, value|
+          provides(([opts[:scope]].flatten.compact + [key].flatten.compact) => value)
+        end
       end
 
       private
@@ -76,41 +90,48 @@ module DataProvider
       end
 
       def take(id)
+        return self.class.provides[id] if self.class.provides.has_key?(id)
         single_provider = self.class.single_provider(id) #, :data => @data)
         # execute block with the scope of this object
-        if single_provider.nil?
-          logger.warn "Can't find provider: #{id.inspect}"
-          return nil
-        end
-
+        # if single_provider.nil?
+        #   logger.warn "Can't find provider: #{id.inspect}"
+        #   return nil
+        # end
         return instance_eval(&single_provider.block) 
       end
 
+      alias :get_data :take
+
       def try_take(id)
-        single_provider = self.class.single_provider(id) #, :data => @data)
-        # execute block with the scope of this object
-        if single_provider.nil?
+        if !self.class.has_provider?(id)
           logger.debug "Try for missing provider: #{id.inspect}"
           return nil
         end
 
-        return instance_eval(&single_provider.block)
+        return take(id)
       end
 
       def given(param_name)
         return data[param_name] if data.has_key?(param_name)
         logger.error "data provider expected missing data with identifier: #{param_name.inspect}"
         # TODO: raise?
+        return nil
       end
 
       def give(_data = {})
         return self.class.new(options.merge(:data => data.merge(_data)))
       end
 
+      alias :add_scope :give
+      alias :add_data :give
+
       def give!(_data = {})
         @data = data.merge(_data)
         return self
       end
+
+      alias :add_scope! :give!
+      alias :add_data! :give!
     end # module InstanceMethods
 
   end # module Base

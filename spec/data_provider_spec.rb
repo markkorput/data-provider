@@ -37,6 +37,11 @@ describe DataProvider::Base do
       expect(@provider.take(:sum)).to eq 7
       expect(@provider.take(:static)).to eq 'StaticValue'
     end
+
+    it "has a get_data alias for take" do
+      expect(@provider.get_data(:sum)).to eq @provider.take(:sum)
+      expect(@provider.get_data(:static)).to eq @provider.take(:static)
+    end
   end
 
   describe "#give" do
@@ -48,6 +53,14 @@ describe DataProvider::Base do
 
     it "allows for linked notation" do
       expect(@provider.give(:array => [7, -3]).take(:sum)).to eq 4
+    end
+
+    it "has an add_scope alias" do
+      expect(@provider.add_scope(:array => [400, 20]).take(:sum)).to eq 420
+    end
+
+    it "has an add_data alias" do
+      expect(@provider.add_data(:array => [400, 20]).take(:sum)).to eq 420
     end
   end
 
@@ -61,6 +74,16 @@ describe DataProvider::Base do
 
     it "allows for linked notation" do
       expect(@provider.give!(:array => [-1, -4]).take(:sum)).to eq -5
+    end
+
+    it "has an add_scope! alias" do
+      @provider.add_scope!(:array => [-1, -4])
+      expect(@provider.get_data(:sum)).to eq -5
+    end
+
+    it "has an add_data! alias" do
+      @provider.add_data!(:array => [5, 5])
+      expect(@provider.get_data(:sum)).to eq 10
     end
   end
 end
