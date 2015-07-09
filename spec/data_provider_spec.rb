@@ -251,6 +251,35 @@ describe DataProvider::Base do
       expect(klass.new.take(:something)).to eq 'Missing something'
       expect{klass.new.missing_provider}.to raise_error(NoMethodError)
     end
+
+    it 'calls the fallback provider when using try_take with an unknown provider' do
+      klass = Class.new Object do
+        include DataProvider::Base
+        provider_missing do
+          "fallback_#{missing_provider}"
+        end
+      end
+
+      expect(klass.new.try_take(:cool)).to eq 'fallback_cool'
+    end     
+  end
+
+  describe "fallback_provider?" do
+    it "lets you know if a fallback provider has been registered" do
+      klass = Class.new Object do
+        include DataProvider::Base
+      end
+
+      expect(klass.fallback_provider?).to eq false
+      expect(klass.new.fallback_provider?).to eq false
+
+      klass.provider_missing do
+        "New fallback!"
+      end
+
+      expect(klass.fallback_provider?).to eq true
+      expect(klass.new.fallback_provider?).to eq true
+    end
   end
 end
 

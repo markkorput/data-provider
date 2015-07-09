@@ -50,6 +50,10 @@ module DataProvider
         (provides[identifier] || get_provider(identifier)) != nil
       end
 
+      def fallback_provider?
+        !fallback_provider.nil?
+      end
+
       # adds all the providers defined in the given module to this class
       def add(providers_module)
         data = providers_module.instance_variable_get('@data_provider') || {}
@@ -116,6 +120,10 @@ module DataProvider
         self.class.has_provider?(id)
       end
 
+      def fallback_provider?
+        self.class.fallback_provider?
+      end
+
       def take(id)
         # first try the simple providers
         return self.class.provides[id] if self.class.provides.has_key?(id)
@@ -134,18 +142,20 @@ module DataProvider
         raise ProviderMissingException.new(:message=>"Data provider tried to take data from missing provider.", :provider_id => id) 
       end
 
-      def try_take(id)
-        if !self.has_provider?(id)
-          logger.debug "Try for missing provider: #{id.inspect}"
+      def try_take(id, opts = {})
+        return take(id) if self.has_provider?(id) || self.fallback_provider?
+        if opts[:fallback] == true
+
+        logger.debug "Try for missing provider: #{id.inspect}"
           return nil
         end
 
-        return take(id)
+        
       end
 
       def given(param_name)
         return data[param_name] if data.has_key?(param_name)
-        logger.error "data provider expected missing data with identifier: #{param_name.inspect}"
+        logger.error "Data provider expected missing data with identifier: #{param_name.inspect}"
         # TODO: raise?
         return nil
       end
