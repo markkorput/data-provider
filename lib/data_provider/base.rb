@@ -126,7 +126,10 @@ module DataProvider
 
       def take(id)
         # first try the simple providers
-        return self.class.provides[id] if self.class.provides.has_key?(id)
+        if self.class.provides.has_key?(id)
+          provider = self.class.provides[id]
+          return provider.is_a?(Proc) ? provider.call : provider
+        end
         # try to get a provider object
         provider = self.class.get_provider(id)
         # execute provider object's block within the scope of self
@@ -136,7 +139,7 @@ module DataProvider
           # temporarily set the @missing_provider instance variable, so the
           # fallback provider can use it through the missing_provider private method
           @missing_provider = id
-          return instance_eval(&provider.block)
+          return instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
         end
         # no fallback either? Time for an error
         raise ProviderMissingException.new(:message=>"Data provider tried to take data from missing provider.", :provider_id => id) 

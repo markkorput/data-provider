@@ -111,7 +111,7 @@ describe DataProvider::Base do
       include DataProvider::Base
       provides({
         :name => 'Paddy',
-        'instrument' => :bass
+        'instrument' => :bass,
       })
     end
 
@@ -141,6 +141,14 @@ describe DataProvider::Base do
 
     it "lets you write linked notation" do
       expect(SimpleProviders.provides({:name => 'Lane'}).new.take(:name)).to eq 'Lane'
+    end
+
+    it "works with lambdas" do
+      expect(SimpleProviders.provides(:name => lambda{ 'Patrick' }).new.take(:name)).to eq 'Patrick'
+    end
+
+    it "works with Procs" do
+      expect(SimpleProviders.provides(:name => Proc.new{ 'St. Patrick' }).new.take(:name)).to eq 'St. Patrick'
     end
   end
 
