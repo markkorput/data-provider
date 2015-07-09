@@ -38,6 +38,25 @@ describe DataProvider::Base do
     end
   end
 
+  describe "#has_providers_with_scope?" do
+    let(:klass){
+      Class.new Object do
+        include DataProvider::Base
+        provider [:a, :b ,:c]
+        provider :unscoped
+      end
+    }
+
+    it "return true if there are providers defined with an array identifier that start with the given prefix" do
+      expect(klass.new.has_providers_with_scope?(:unscoped)).to eq false
+      # byebug
+      expect(klass.has_providers_with_scope?(:a)).to eq true
+      expect(klass.new.has_providers_with_scope?([:a, :b])).to eq true
+      # scope means prefix, identfier may not be exactly the given array
+      expect(klass.new.has_providers_with_scope?([:a, :b, :c])).to eq false
+    end
+  end
+
   describe "#take" do
     it 'lets you take data from it' do
       expect(@provider.take(:sum)).to eq 7

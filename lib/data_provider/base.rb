@@ -35,6 +35,10 @@ module DataProvider
         return args.nil? ? nil : Provider.new(*args)
       end
 
+      def provider_identifiers
+        (provides.keys + data_provider_definitions.map(&:first)).compact.uniq
+      end
+
       # adds a new provider to the class
       def provider identifier, opts = {}, &block
         add_provider(identifier, opts, block_given? ? block : nil)
@@ -48,6 +52,11 @@ module DataProvider
       # returns wether a provider with the given identifier is available
       def has_provider?(identifier)
         (provides[identifier] || get_provider(identifier)) != nil
+      end
+
+      def has_providers_with_scope?(args)
+        scope = args.is_a?(Array) ? args : [args]
+        provider_identifiers.find{|id| id.is_a?(Array) && id.length > scope.length && id[0..(scope.length-1)] == scope} != nil
       end
 
       def fallback_provider?
@@ -118,6 +127,10 @@ module DataProvider
 
       def has_provider?(id)
         self.class.has_provider?(id)
+      end
+
+      def has_providers_with_scope?(scope)
+        self.class.has_providers_with_scope?(scope)
       end
 
       def fallback_provider?
