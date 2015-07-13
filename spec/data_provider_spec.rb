@@ -36,19 +36,15 @@ describe DataProvider::Base do
     end
   end
 
-  # let(:provider){
-  #   ProviderClass.new(:data => {:array => [1,2,4]})
-  # }
-
-  before :all do
-    @provider = ProviderClass.new(:data => {:array => [1,2,4]})
-  end
+  let(:provider){
+    ProviderClass.new(:data => {:array => [1,2,4]})
+  }
 
   describe "#has_provider?" do
     it 'provides the has_provider? instance method' do
-      expect(@provider.has_provider?(:sum)).to be true
-      expect(@provider.has_provider?(:static)).to be true
-      expect(@provider.has_provider?(:modulus)).to be false
+      expect(provider.has_provider?(:sum)).to be true
+      expect(provider.has_provider?(:static)).to be true
+      expect(provider.has_provider?(:modulus)).to be false
     end
 
     it 'provides the has_provider? class method' do
@@ -79,77 +75,77 @@ describe DataProvider::Base do
 
   describe "#take" do
     it 'lets you take data from it' do
-      expect(@provider.take(:sum)).to eq 7
-      expect(@provider.take(:static)).to eq 'StaticValue'
+      expect(provider.take(:sum)).to eq 7
+      expect(provider.take(:static)).to eq 'StaticValue'
     end
 
     it 'raise a ProviderMissingException when attempting to take from unknown provider' do
-      expect{@provider.take(:unknown)}.to raise_error(DataProvider::ProviderMissingException)
+      expect{provider.take(:unknown)}.to raise_error(DataProvider::ProviderMissingException)
     end
 
 
     it 'works from within a provider block' do
-      expect(@provider.take(:billy)).to eq 'Billy Bragg'
+      expect(provider.take(:billy)).to eq 'Billy Bragg'
     end
   end
 
   describe "#try_take" do
     it "acts like #take when the specified provider is present" do
-      expect(@provider.try_take(:sum)).to eq 7
+      expect(provider.try_take(:sum)).to eq 7
     end
 
     it "returns nil when the specified provider is not found" do
-      expect(@provider.try_take(:square_root)).to eq nil
+      expect(provider.try_take(:square_root)).to eq nil
     end
   end
 
   describe "#scoped_take" do
     it 'lets a provider call providers within its own scope' do
-      expect(@provider.take([:identification, :fullname])).to eq 'Billy Bragg'
+      expect(provider.take([:identification, :fullname])).to eq 'Billy Bragg'
     end
   end
 
   describe "#give" do
     it "lets you give data, creating a new data provider instance" do
-      updated_provider = @provider.give :array => [1,80]
-      expect(@provider.take(:sum)).to eq 7
+      updated_provider = provider.give :array => [1,80]
+      expect(provider.take(:sum)).to eq 7
       expect(updated_provider.take(:sum)).to eq 81
     end
 
     it "allows for linked notation" do
-      expect(@provider.give(:array => [7, -3]).take(:sum)).to eq 4
+      expect(provider.give(:array => [7, -3]).take(:sum)).to eq 4
     end
 
     it "has an add_scope alias" do
-      expect(@provider.add_scope(:array => [400, 20]).take(:sum)).to eq 420
+      expect(provider.add_scope(:array => [400, 20]).take(:sum)).to eq 420
     end
 
     it "has an add_data alias" do
-      expect(@provider.add_data(:array => [400, 20]).take(:sum)).to eq 420
+      expect(provider.add_data(:array => [400, 20]).take(:sum)).to eq 420
     end
   end
 
   describe "#give!" do
     it "lets you update the current provider with additional data" do
-      provider = ProviderClass.new(:data => {:array => [1,1,90]})
-      expect(provider.take(:sum)).to eq 92
-      provider.give!(:array => [3,90])
-      expect(provider.take(:sum)).to eq 93
+      prov = ProviderClass.new(:data => {:array => [1,1,90]})
+      expect(prov.take(:sum)).to eq 92
+      prov.give!(:array => [3,90])
+      expect(prov.take(:sum)).to eq 93
     end
 
     it "allows for linked notation" do
-      expect(@provider.give.give!(:array => [-1, -4]).take(:sum)).to eq -5
+      expect(provider.give.give!(:array => [-1, -4]).take(:sum)).to eq -5
     end
 
     it "has an add_scope! alias" do
-      provider = @provider.add_scope()
-      provider.add_scope!(:array => [-1, -4])
-      expect(provider.given(:array)).to eq [-1,-4]
-      expect(provider.take(:sum)).to eq -5
+      newprovider = provider.add_scope
+      newprovider.add_scope!(:array => [-1, -4])
+      expect(newprovider.given(:array)).to eq [-1,-4]
+      expect(newprovider.take(:sum)).to eq -5
     end
 
     it "has an add_data! alias" do
-      scoped_provider = @provider.add_data(:array => []).add_data!(:array => [5, 5])
+      scoped_provider = provider.add_data(:array => []).add_data!(:array => [5, 5])
       expect(scoped_provider.get_data(:array)).to eq [5,5]
       expect(scoped_provider.take(:sum)).to eq 10
     end
@@ -157,12 +153,12 @@ describe DataProvider::Base do
 
   describe "#given" do 
     it "has a given method to get given data" do
-      expect(@provider.given(:array)).to eq [1,2,4]
-      expect(@provider.give(:array => 'array').given(:array)).to eq 'array'
+      expect(provider.given(:array)).to eq [1,2,4]
+      expect(provider.give(:array => 'array').given(:array)).to eq 'array'
     end
 
     it "has a get_data alias" do
-      expect(@provider.get_data(:array)).to eq @provider.given(:array)
+      expect(provider.get_data(:array)).to eq provider.given(:array)
     end
   end
 
@@ -407,17 +403,15 @@ describe "Array identifiers" do
     # add ArrayProviderModule
   end
 
-  before :all do
-    @provider = ArrayProviderClass.new
-  end
+  let(:provider){
+    ArrayProviderClass.new
+  }
 
   it "lets you use array as provider identifiers" do
-    expect(@provider.take([:some, 'Stuff'])).to eq 'SomeStuff'
+    expect(provider.take([:some, 'Stuff'])).to eq 'SomeStuff'
   end
 
   it "lets you overwrite existing providers with Array-based identifiers" do
-    # skip 'not working yet'
-    provider = ArrayProviderClass.new
     expect(provider.take([:some, 'Stuff'])).to eq 'SomeStuff'
 
     provider.class.add(ArrayProviderModule)
