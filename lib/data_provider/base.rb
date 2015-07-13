@@ -145,17 +145,28 @@ module DataProvider
         end
         # try to get a provider object
         provider = self.class.get_provider(id)
-        # execute provider object's block within the scope of self
-        return instance_eval(&provider.block) if provider
+        if provider
+          @scope ||= []
+          @scope << (id.is_a?(Array) ? id[0..-2] : [])
+          result = instance_eval(&provider.block) 
+          @scope.pop
+          # execute provider object's block within the scope of self
+          return result
+        end
+
         # couldn't find requested provider, let's see if there's a fallback
         if provider = self.class.fallback_provider
           # temporarily set the @missing_provider instance variable, so the
           # fallback provider can use it through the missing_provider private method
           @missing_provider = id
-          return instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
+          @scope ||= []
+          @scope << (id.is_a?(Array) ? id[0..-2] : [])
+          result = instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
+          @scope = nil
+          return result
         end
         # no fallback either? Time for an error
-        raise ProviderMissingException.new(:message=>"Data provider tried to take data from missing provider.", :provider_id => id) 
+        raise ProviderMissingException.new(:message=>"Tried to take data from missing provider.", :provider_id => id) 
       end
 
       def try_take(id, opts = {})
@@ -165,9 +176,15 @@ module DataProvider
         logger.debug "Try for missing provider: #{id.inspect}"
           return nil
         end
-
-        
       end
+
+      private
+
+      def scoped_take(id)
+        take(((@scope || []).last || []) + [id].flatten)
+      end
+
+      public
 
       def given(param_name)
         return data[param_name] if data.has_key?(param_name)
@@ -198,6 +215,10 @@ module DataProvider
       def missing_provider
         # byebug
         @missing_provider
+      end
+
+      def scope
+        @scope || []
       end
     end # module InstanceMethods
 

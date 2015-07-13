@@ -18,7 +18,27 @@ describe DataProvider::Base do
     provider :static do
       'StaticValue'
     end
+
+    provider :billy do
+      take([:identification, :fullname])
+    end
+
+    provider [:identification, :firstname] do
+      'Billy'
+    end
+
+    provider [:identification, :lastname] do
+      'Bragg'
+    end
+
+    provider [:identification, :fullname] do
+      "#{scoped_take(:firstname)} #{scoped_take(:lastname)}"
+    end
   end
+
+  # let(:provider){
+  #   ProviderClass.new(:data => {:array => [1,2,4]})
+  # }
 
   before :all do
     @provider = ProviderClass.new(:data => {:array => [1,2,4]})
@@ -65,6 +85,27 @@ describe DataProvider::Base do
 
     it 'raise a ProviderMissingException when attempting to take from unknown provider' do
       expect{@provider.take(:unknown)}.to raise_error(DataProvider::ProviderMissingException)
+    end
+
+
+    it 'works from within a provider block' do
+      expect(@provider.take(:billy)).to eq 'Billy Bragg'
+    end
+  end
+
+  describe "#try_take" do
+    it "acts like #take when the specified provider is present" do
+      expect(@provider.try_take(:sum)).to eq 7
+    end
+
+    it "returns nil when the specified provider is not found" do
+      expect(@provider.try_take(:square_root)).to eq nil
+    end
+  end
+
+  describe "#scoped_take" do
+    it 'lets a provider call providers within its own scope' do
+      expect(@provider.take([:identification, :fullname])).to eq 'Billy Bragg'
     end
   end
 
