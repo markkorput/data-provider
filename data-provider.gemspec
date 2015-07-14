@@ -1,5 +1,5 @@
 GEM_NAME="data-provider"
-PKG_VERSION='0.0.1'
+PKG_VERSION='0.1.0'
 
 Gem::Specification.new do |s|
   s.name = GEM_NAME
@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
 
   s.author = "Mark van de Korput"
   s.email = "dr.theman@gmail.com"
-  s.date = '2015-07-08'
+  s.date = '2015-07-14'
   s.description = %q{A library of Ruby classes to help create consistent data interfaces}
   s.summary = %q{A library of Ruby classes to help create consistent data interfaces}
   s.homepage = %q{https://github.com/markkorput/data-provider}
