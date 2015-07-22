@@ -145,6 +145,7 @@ module DataProvider
           provider = self.class.provides[id]
           return provider.is_a?(Proc) ? provider.call : provider
         end
+
         # try to get a provider object
         provider = self.class.get_provider(id)
         if provider
@@ -155,6 +156,9 @@ module DataProvider
           # execute provider object's block within the scope of self
           return result
         end
+
+        # try a scoped_take, if there's a scope (meaning this 'take' was called from inside a provider)
+        return scoped_take(id) rescue ProviderMissingException if scope.length > 0
 
         # couldn't find requested provider, let's see if there's a fallback
         if provider = self.class.fallback_provider

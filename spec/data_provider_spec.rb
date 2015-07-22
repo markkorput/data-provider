@@ -34,6 +34,18 @@ describe DataProvider::Base do
     provider [:identification, :fullname] do
       "#{scoped_take(:firstname)} #{scoped_take(:lastname)}"
     end
+
+    provider [:identification, :identifier] do
+      take(:firstname)
+    end
+
+    provider :fullname do
+      'Stephen William Bragg'
+    end
+
+    provider [:identification, :id] do
+      take(:fullname)
+    end
   end
 
   let(:provider){
@@ -74,7 +86,7 @@ describe DataProvider::Base do
   end
 
   describe "#take" do
-    it 'lets you take data from it' do
+    it 'lets you take data from a data provider instance' do
       expect(provider.take(:sum)).to eq 7
       expect(provider.take(:static)).to eq 'StaticValue'
     end
@@ -83,9 +95,13 @@ describe DataProvider::Base do
       expect{provider.take(:unknown)}.to raise_error(DataProvider::ProviderMissingException)
     end
 
-
     it 'works from within a provider block' do
       expect(provider.take(:billy)).to eq 'Billy Bragg'
+    end
+
+    it "acts like #scoped_take when used inside a provider and the specified provider isn't available" do
+      expect(provider.take([:identification, :id])).to eq 'Stephen William Bragg'
+      expect(provider.take([:identification, :identifier])).to eq 'Billy'
     end
   end
 
