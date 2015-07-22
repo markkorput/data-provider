@@ -46,6 +46,10 @@ describe DataProvider::Base do
     provider [:identification, :id] do
       take(:fullname)
     end
+
+    provider [:identification, :ID] do
+      take(:id)
+    end
   end
 
   let(:provider){
@@ -93,6 +97,7 @@ describe DataProvider::Base do
 
     it 'raise a ProviderMissingException when attempting to take from unknown provider' do
       expect{provider.take(:unknown)}.to raise_error(DataProvider::ProviderMissingException)
+      expect{provider.take([:identification, :foo])}.to raise_error(DataProvider::ProviderMissingException)
     end
 
     it 'works from within a provider block' do
@@ -102,6 +107,10 @@ describe DataProvider::Base do
     it "acts like #scoped_take when used inside a provider and the specified provider isn't available" do
       expect(provider.take([:identification, :id])).to eq 'Stephen William Bragg'
       expect(provider.take([:identification, :identifier])).to eq 'Billy'
+    end
+
+    it "can act like #scoped_take recursively" do
+      expect(provider.take([:identification, :ID])).to eq 'Stephen William Bragg'
     end
   end
 
@@ -308,6 +317,26 @@ describe DataProvider::Base do
         :mommy => 'Wilma',
         :daddy => 'Fret'
       })
+
+      provider :mobility do
+        'crawling'
+      end
+
+      provider :movement do
+        take(:mobility)
+      end
+
+      provider :symbol do
+        'Symbol provider'
+      end
+
+      provider :sym do
+        take(:symbol)
+      end
+
+      provider ['string'] do
+        'String provider: ' + take(:symbol)
+      end
     end
 
     class ProviderKlass
@@ -331,6 +360,19 @@ describe DataProvider::Base do
       expect(ProviderKlass.new.take([:child, :child, :age])).to eq 1
       expect(ProviderKlass.new.take([:child, :child, :mommy])).to eq 'Wilma'
       expect(ProviderKlass.new.take([:child, :child, :daddy])).to eq 'Fret'
+    end
+
+    it "#take acts like #scoped_take inside providers works for add_scoped modules as well" do
+      expect( ProviderKlass.new.take([:child, :child, :mobility]) ).to eq 'crawling'
+      expect( ProviderKlass.new.take([:child, :child, :movement]) ).to eq 'crawling'
+    end
+
+    it "doesn't act up when mixing symbols and strings in array identifiers" do
+      expect( ProviderKlass.new.take([:child, :child, 'string']) ).to eq 'String provider: Symbol provider'
+    end
+
+    it "lets #take act like #scoped_take recursively" do
+      expect( ProviderKlass.new.take([:child, :child, :sym]) ).to eq 'Symbol provider'
     end
   end
 
@@ -533,7 +575,7 @@ describe "Exceptions" do
   it "can take from missing providers" do
     expect { provider.take(:missing) }.to raise_error(DataProvider::ProviderMissingException)
     expect { provider.take(:missing) }.to raise_error { |error|
-      expect( error.message ).to eq 'Tried to take data from missing provider.'
+      expect( error.message ).to eq 'Tried to take data from missing provider: :foo'
       expect( error.provider_id ).to eq :foo
     }
   end

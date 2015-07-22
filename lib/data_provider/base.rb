@@ -7,7 +7,7 @@ module DataProvider
 
     def initialize(_params = {})
       @params = _params || {}
-      super(params[:message] || 'Tried to take data from missing provider.')
+      super(params[:message] || "Tried to take data from missing provider: #{provider_id.inspect}")
     end
 
     def provider_id
@@ -171,13 +171,13 @@ module DataProvider
           return result
         end
 
-        # try to get a provider object
+        # try to get a scoped provider object
         if scope.length > 0
-          scoped_id = scope + (id.is_a?(Array) ? id : [id])
+          scoped_id = [scope, id].flatten
           provider = self.class.get_provider(scoped_id)
           if provider
             @scopes ||= []
-            @scopes << (scoped_id.is_a?(Array) ? id[0..-2] : [])
+            @scopes << (scoped_id.is_a?(Array) ? scoped_id[0..-2] : [])
             result = instance_eval(&provider.block) 
             @scopes.pop
             # execute provider object's block within the scope of self
