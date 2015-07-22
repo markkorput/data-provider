@@ -134,7 +134,9 @@ module DataProvider
       end
 
       def logger
-        @logger ||= options[:logger] || Logger.new(STDOUT)
+        @logger ||= options[:logger] || Logger.new(STDOUT).tap do |lger|
+          lger.level = Logger::WARN
+        end
       end
 
       def has_provider?(id)
@@ -150,6 +152,8 @@ module DataProvider
       end
 
       def take(id)
+        logger.debug "DataProvider#take with id: #{id.inspect}"
+
         # first try the simple providers
         if self.class.provides.has_key?(id)
           provider = self.class.provides[id]
@@ -187,11 +191,9 @@ module DataProvider
 
       def try_take(id, opts = {})
         return take(id) if self.has_provider?(id) || self.fallback_provider?
-        if opts[:fallback] == true
-
+        #if opts[:fallback] == true
         logger.debug "Try for missing provider: #{id.inspect}"
-          return nil
-        end
+        return nil
       end
 
       private
