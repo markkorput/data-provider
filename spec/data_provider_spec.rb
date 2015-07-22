@@ -203,6 +203,22 @@ describe DataProvider::Base do
     end
   end
 
+  describe '#got?' do
+    it "returns if the specified piece of data is given" do
+      obj = ProviderClass.new(:data => {:name => 'John'})
+      expect( obj.got?(:lastname) ).to be false
+      expect( obj.got?(:name) ).to be true
+      expect( obj.give(:lastname => 'Doe').got?(:lastname) ).to be true
+    end
+
+    it "has an 'has_data?' alias" do
+      obj = ProviderClass.new(:data => {:name => 'John'})
+      expect( obj.has_data?(:lastname) ).to be false
+      expect( obj.has_data?(:name) ).to be true
+      expect( obj.add_data(:lastname => 'Doe').has_data?(:lastname) ).to be true
+    end
+  end
+
   describe "#given" do 
     it "has a given method to get given data" do
       expect(provider.given(:array)).to eq [1,2,4]

@@ -215,8 +215,14 @@ module DataProvider
 
       public
 
+      def got?(param_name)
+        data.has_key?(param_name)
+      end
+
+      alias :has_data? got?
+
       def given(param_name)
-        return data[param_name] if data.has_key?(param_name)
+        return data[param_name] if got?(param_name)
         logger.error "Data provider expected missing data with identifier: #{param_name.inspect}"
         # TODO: raise?
         return nil
