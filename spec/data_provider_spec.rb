@@ -418,3 +418,45 @@ describe "Array identifiers" do
     expect(provider.take([:some, 'Stuff'])).to eq 'OtherStuff'
   end
 end
+
+describe "Mixing regular ruby methods and data providers" do
+  module MixedModule
+    include DataProvider::Base
+
+    def func2
+      "More Normal Stuff"
+    end
+
+    provider :module_provider do
+      "#{take(:pro_vider)}, #{func}, #{func2}"
+    end
+  end
+
+  class MixedClass
+    include DataProvider::Base
+
+    provider :pro_vider do
+      func
+    end
+
+    def func
+      "Something Normal Here"
+    end
+
+    add MixedModule
+  end
+
+  describe "custom class methods" do
+    it "lets providers access regular methods" do
+      obj = MixedClass.new
+      expect(obj.func).to eq 'Something Normal Here'
+      expect(obj.take(:pro_vider)).to eq 'Something Normal Here'
+    end
+
+    it "lets module providers access methods from the base class and vice-versa" do
+      obj = MixedClass.new
+      expect(obj.func2).to eq 'More Normal Stuff'
+      expect(obj.take(:module_provider)).to eq 'Something Normal Here, Something Normal Here, More Normal Stuff'
+    end
+  end
+end

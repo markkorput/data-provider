@@ -72,6 +72,8 @@ module DataProvider
         end
 
         self.provides(data[:provides] || {})
+
+        self.include providers_module
       end
 
       # adds all the providers defined in the given module to this class,
