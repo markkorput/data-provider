@@ -3,6 +3,16 @@ require 'logger'
 module DataProvider
 
   class ProviderMissingException < Exception
+    attr_reader :params
+
+    def initialize(_params = {})
+      @params = _params || {}
+      super(params[:message] || 'Tried to take data from missing provider.')
+    end
+
+    def provider_id
+      params[:provider_id]
+    end
   end
 
   module Base
@@ -172,7 +182,7 @@ module DataProvider
           return result
         end
         # no fallback either? Time for an error
-        raise ProviderMissingException.new(:message=>"Tried to take data from missing provider.", :provider_id => id) 
+        raise ProviderMissingException.new(:provider_id => id) 
       end
 
       def try_take(id, opts = {})

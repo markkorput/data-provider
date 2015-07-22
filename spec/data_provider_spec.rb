@@ -503,3 +503,42 @@ describe "Mixing regular ruby methods and data providers" do
     end
   end
 end
+
+describe "Exceptions" do
+  class ExceptionProvider
+    include DataProvider::Base
+
+    provider :runtime do
+      raise 'Whoops'
+    end
+
+    provider :missing do
+      take(:foo)
+    end
+
+    provider :nomethod do
+      bar
+    end
+  end
+
+  let(:provider){
+    ExceptionProvider.new
+  }
+
+  it "can go wrong, like everything else" do
+    expect { provider.take(:runtime)}.to raise_error(RuntimeError)
+    expect { provider.take(:runtime)}.to raise_error('Whoops')
+  end
+
+  it "can take from missing providers" do
+    expect { provider.take(:missing) }.to raise_error(DataProvider::ProviderMissingException)
+    expect { provider.take(:missing) }.to raise_error { |error|
+      expect( error.message ).to eq 'Tried to take data from missing provider.'
+      expect( error.provider_id ).to eq :foo
+    }
+  end
+
+  it "can call missing methods" do
+    expect { provider.take(:nomethod) }.to raise_error(NameError)
+  end
+end
