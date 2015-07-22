@@ -171,8 +171,19 @@ module DataProvider
           return result
         end
 
-        # try a scoped_take, if there's a scope (meaning this 'take' was called from inside a provider)
-        return scoped_take(id) rescue ProviderMissingException if scope.length > 0
+        # try to get a provider object
+        if scope.length > 0
+          scoped_id = scope + (id.is_a?(Array) ? id : [id])
+          provider = self.class.get_provider(scoped_id)
+          if provider
+            @scopes ||= []
+            @scopes << (scoped_id.is_a?(Array) ? id[0..-2] : [])
+            result = instance_eval(&provider.block) 
+            @scopes.pop
+            # execute provider object's block within the scope of self
+            return result
+          end
+        end
 
         # couldn't find requested provider, let's see if there's a fallback
         if provider = self.class.fallback_provider
@@ -214,7 +225,7 @@ module DataProvider
       alias :get_data :given
 
       def give(_data = {})
-        return self.class.new(options.merge(:data => data.merge(_data)))
+        self.class.new(options.merge(:data => data.merge(_data)))
       end
 
       alias :add_scope :give
