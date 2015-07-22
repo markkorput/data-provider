@@ -100,16 +100,28 @@ describe DataProvider::Base do
   end
 
   describe "#scope" do
-    it 'gives providers the current scope' do
-      # create a temp class  with one provider that uses #scope
-      klass = Class.new Object do
+    let(:klass){
+      Class.new Object do
         include DataProvider::Base
+        provider [:a, :b] do
+          'woeha!'
+        end
         provider [:a, :b ,:c] do
           scope
         end
-      end
 
+        provider [:a, :b ,:eq] do
+          take scope
+        end
+      end
+    }
+
+    it 'gives providers the current scope' do
       expect(klass.new.take([:a,:b,:c])).to eq [:a,:b]
+    end
+
+    it "can be used by providers to call the 'parent provider'" do
+      expect(klass.new.take([:a,:b,:eq])).to eq klass.new.take([:a,:b])
     end
   end
 
