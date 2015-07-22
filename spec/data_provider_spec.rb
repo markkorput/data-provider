@@ -99,10 +99,25 @@ describe DataProvider::Base do
     end
   end
 
+  describe "#scope" do
+    it 'gives providers the current scope' do
+      # create a temp class  with one provider that uses #scope
+      klass = Class.new Object do
+        include DataProvider::Base
+        provider [:a, :b ,:c] do
+          scope
+        end
+      end
+
+      expect(klass.new.take([:a,:b,:c])).to eq [:a,:b]
+    end
+  end
+
   describe "#scoped_take" do
     it 'lets a provider call providers within its own scope' do
       expect(provider.take([:identification, :fullname])).to eq 'Billy Bragg'
     end
+    # it 'lets attribute providers'
   end
 
   describe "#give" do

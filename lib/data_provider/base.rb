@@ -148,10 +148,10 @@ module DataProvider
         # try to get a provider object
         provider = self.class.get_provider(id)
         if provider
-          @scope ||= []
-          @scope << (id.is_a?(Array) ? id[0..-2] : [])
+          @scopes ||= []
+          @scopes << (id.is_a?(Array) ? id[0..-2] : [])
           result = instance_eval(&provider.block) 
-          @scope.pop
+          @scopes.pop
           # execute provider object's block within the scope of self
           return result
         end
@@ -161,10 +161,10 @@ module DataProvider
           # temporarily set the @missing_provider instance variable, so the
           # fallback provider can use it through the missing_provider private method
           @missing_provider = id
-          @scope ||= []
-          @scope << (id.is_a?(Array) ? id[0..-2] : [])
+          @scopes ||= []
+          @scopes << (id.is_a?(Array) ? id[0..-2] : [])
           result = instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
-          @scope = nil
+          @scopes = nil
           return result
         end
         # no fallback either? Time for an error
@@ -183,7 +183,7 @@ module DataProvider
       private
 
       def scoped_take(id)
-        take(((@scope || []).last || []) + [id].flatten)
+        take(scope + [id].flatten)
       end
 
       public
@@ -219,8 +219,12 @@ module DataProvider
         @missing_provider
       end
 
+      def scopes
+        @scopes || []
+      end
+
       def scope
-        @scope || []
+        scopes.last || []
       end
     end # module InstanceMethods
 
