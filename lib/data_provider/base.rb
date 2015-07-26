@@ -77,12 +77,14 @@ module DataProvider
       def add(providers_module)
         data = providers_module.instance_variable_get('@data_provider') || {}
 
-        (data[:provider_args] || []).each do |definition|
+        # internally providers are added in reverse order (last one first)
+        # so at runtime you it's easy and fast to grab the latest provider
+        # so when adding now, we have to reverse the providers to get them in the original order
+        (data[:provider_args] || []).reverse.each do |definition|
           add_provider(*definition)
         end
 
         self.provides(data[:provides] || {})
-
         self.include providers_module
       end
 

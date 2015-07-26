@@ -317,6 +317,44 @@ describe DataProvider::Base do
       expect(BasicProviders.new.take(1)).to eq 'Uno'
       expect(BasicProviders.new.take(:three)).to eq :tres
     end
+
+    it "includes providers which can be overwritten" do
+      klass = Class.new(Object) do
+        include DataProvider::Base
+        add OddProviders
+        provider :three do '33' end
+      end
+
+      expect(klass.new.take(:three)).to eq '33'
+    end
+
+    it "can be used in a module" do
+      m1 = Module.new do
+        include DataProvider::Base
+
+        # this provider should get overwritten
+        provider :aa do 'aa1' end
+      end
+
+      m2 = Module.new do
+        include DataProvider::Base
+        add m1
+
+        # this provider should overwrite the m1 version
+        provider :aa do 'aa2' end
+      end
+
+      c = Class.new(Object) do
+        include DataProvider::Base
+
+        #$ this provider gets overwritten
+        provider :aa do 'aa3' end
+
+        add m2
+      end
+
+      expect(c.new.take(:aa)).to eq 'aa2'
+    end
   end
 
   describe "#add_scoped" do
