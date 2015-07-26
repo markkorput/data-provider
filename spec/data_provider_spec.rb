@@ -328,11 +328,11 @@ describe DataProvider::Base do
       expect(klass.new.take(:three)).to eq '33'
     end
 
-    it "can be used in a module" do
+    it "can be used in modules, latest provider always overwrites the previous" do
       m1 = Module.new do
         include DataProvider::Base
 
-        # this provider should get overwritten
+        # this provider should get overwritten by the m2 version
         provider :aa do 'aa1' end
       end
 
@@ -347,7 +347,7 @@ describe DataProvider::Base do
       c = Class.new(Object) do
         include DataProvider::Base
 
-        #$ this provider gets overwritten
+        # this provider gets overwritten when we do the add call below
         provider :aa do 'aa3' end
 
         add m2
@@ -427,6 +427,29 @@ describe DataProvider::Base do
 
     it "lets #take act like #scoped_take recursively" do
       expect( ProviderKlass.new.take([:child, :child, :sym]) ).to eq 'Symbol provider'
+    end
+
+    it 'respect provider order/priority' do
+      m1 = Module.new do
+        include DataProvider::Base
+        provider 'version' do 1 end
+      end
+
+      m2 = Module.new do
+        include DataProvider::Base
+        add m1
+        provider 'version' do 2 end
+      end
+
+      c = Class.new(Object) do
+        include DataProvider::Base
+        provider 'version' do 0 end
+        provider ['module', 'version'] do -1 end
+        add_scoped m2, :scope => 'module'
+      end
+
+      expect(c.new.try_take('version')).to eq 0
+      expect(c.new.try_take(['module', 'version'])).to eq 2
     end
   end
 

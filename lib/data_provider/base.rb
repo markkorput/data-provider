@@ -93,7 +93,7 @@ module DataProvider
       def add_scoped(providers_module, _options = {})
         data = providers_module.instance_variable_get('@data_provider') || {}
 
-        (data[:provider_args] || []).each do |definition|
+        (data[:provider_args] || []).reverse.each do |definition|
           definition[0] = [definition[0]].flatten
           definition[0] = [_options[:scope]].flatten.compact + definition[0] if _options[:scope]
           add_provider(*definition)
