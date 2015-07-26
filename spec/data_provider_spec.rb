@@ -451,6 +451,62 @@ describe DataProvider::Base do
       expect(c.new.try_take('version')).to eq 0
       expect(c.new.try_take(['module', 'version'])).to eq 2
     end
+
+    it 'works recursively' do
+      m1 = Module.new do
+        include DataProvider::Base
+        provider ['name'] do 'Johnny Blaze' end
+      end
+
+      expect(m1.provider_identifiers).to eq [['name']]
+
+      m2 = Module.new do
+        include DataProvider::Base
+        # this next line adds the provider ['name'] to m2
+        add m1
+      end
+
+      expect(m2.provider_identifiers).to eq [['name']]
+
+      m3 = Module.new do
+        include DataProvider::Base
+        # this provider will end up like ['creatures', 'name'] in c1
+        provider ['name'] do 'Mr. Nobody' end
+        # the next line adds the provider ['person', 'name'] to m3
+        add_scoped m2, :scope => 'person'
+      end
+
+      # providers are internally added in reverse order
+      expect(m3.provider_identifiers).to eq [['person', 'name'], ['name']]
+
+      c1 = Class.new(Object) do
+        include DataProvider::Base
+        # the next line will add the provides ['creatures', 'name'] and ['creatures', 'person', 'name']
+        add_scoped m3, :scope => 'creatures'
+      end
+
+      expect(c1.has_provider?('name')).to eq false
+      expect(c1.has_provider?(['name'])).to eq false
+      expect(c1.has_provider?(['person', 'name'])).to eq false
+      expect(c1.has_provider?(['creatures', 'person', 'name'])).to eq true
+      expect(c1.new.take(['creatures', 'person', 'name'])).to eq 'Johnny Blaze'
+    end
+
+    it "doesn't affect the added module" do
+      m1 = Module.new do
+        include DataProvider::Base
+        provider ['name'] do 'Johnny Blaze' end
+      end
+
+      expect(m1.provider_identifiers).to eq [['name']]
+
+      c1 = Class.new(Object) do
+        include DataProvider::Base
+        add_scoped m1, :scope => 'prefix'
+      end
+
+      expect(m1.provider_identifiers).to eq [['name']]
+    end
   end
 
   describe "provider_missing" do

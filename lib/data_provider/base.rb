@@ -94,9 +94,9 @@ module DataProvider
         data = providers_module.instance_variable_get('@data_provider') || {}
 
         (data[:provider_args] || []).reverse.each do |definition|
-          definition[0] = [definition[0]].flatten
-          definition[0] = [_options[:scope]].flatten.compact + definition[0] if _options[:scope]
-          add_provider(*definition)
+          identifier = [definition[0]].flatten
+          identifier = [_options[:scope]].flatten.compact + identifier if _options[:scope]
+          add_provider(*([identifier]+definition[1..-1]))
         end
 
         (data[:provides] || {}).each_pair do |key, value|
