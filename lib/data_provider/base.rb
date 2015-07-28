@@ -7,17 +7,14 @@ module DataProvider
     def self.included(base)
       base.class_eval do
         include InstanceMethods
+        include ProxyMethods
         extend ClassMethods
+        extend ProxyMethods
       end
     end
 
-    module ClassMethods
-      def data_provider_container
-        @data_provider_container ||= DataProvider::Container.new
-      end
-
-      alias :dpc :data_provider_container
-
+    # both instance- class-level
+    module ProxyMethods
       def provides *args
         return dpc.provides if args.length == 0
         dpc.provides *args
@@ -44,6 +41,59 @@ module DataProvider
         dpc.fallback_provider?
       end
 
+      def provider_missing *args, &block
+        dpc.provider_missing *args, &block
+      end
+
+
+      def take(*args)
+        dpc.take(*args)
+      end
+
+      def try_take(*args)
+        dpc.try_take(*args)
+      end
+
+
+      def got?(*args)
+        dpc.got?(*args)
+      end
+
+      alias :has_data? :got?
+
+      def given *args
+        dpc.given *args
+      end
+
+      alias :get_data :given
+
+      def give! *args
+        dpc.give! *args
+      end
+
+      alias :add_scope! :give!
+      alias :add_data! :give!
+
+      def add! _module
+        return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
+        include _module
+        dpc.add!(_module.dpc)
+      end
+
+      def add_scoped! _module, options = {}
+        return dpc.add_scoped!(_module, options) if _module.is_a?(DataProvider::Container)
+        include _module
+        dpc.add_scoped! _module.dpc, options
+      end
+    end
+
+    module ClassMethods
+      def data_provider_container
+        @data_provider_container ||= DataProvider::Container.new
+      end
+
+      alias :dpc :data_provider_container
+
       def add _module
         return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
         include _module
@@ -56,9 +106,14 @@ module DataProvider
         dpc.add_scoped! _module.dpc, options
       end
 
-      def provider_missing *args, &block
-        dpc.provider_missing *args, &block
+      # can't copy self on a class-level
+      def give *args
+        dpc.give! *args
       end
+
+      # alias :give :give!
+      alias :add_scope :give
+      alias :add_data :give
     end # module ClassMethods
 
 
@@ -86,37 +141,19 @@ module DataProvider
 
       alias :dpc :data_provider_container
 
-      def has_provider?(*args)
-        dpc.has_provider?(*args)
+      def add _module
+        self.class.new(options.merge({
+          :data => nil,
+          :dpc => dpc.add(_module.is_a?(DataProvider::Container) ? _module : _module.dpc)
+        }))
       end
 
-      def has_providers_with_scope?(*args)
-        dpc.has_providers_with_scope?(*args)
+      def add_scoped _module, options = {}
+        self.class.new(options.merge({
+          :data => nil,
+          :dpc => dpc.add_scoped!(_module.is_a?(DataProvider::Container) ? _module : _module.dpc, options)
+        }))
       end
-
-      def fallback_provider?
-        dpc.fallback_provider?
-      end
-
-      def take(*args)
-        dpc.take(*args)
-      end
-
-      def try_take(*args)
-        dpc.try_take(*args)
-      end
-
-      def got?(*args)
-        dpc.got?(*args)
-      end
-
-      alias :has_data? :got?
-
-      def given *args
-        dpc.given *args
-      end
-
-      alias :get_data :given
 
       def give *args
         self.class.new(options.merge(:data => nil, :dpc => self.dpc.give(*args)))
@@ -124,15 +161,6 @@ module DataProvider
 
       alias :add_scope :give
       alias :add_data :give
-
-      def give! *args
-        dpc.give! *args
-      end
-
-      alias :add_scope! :give!
-      alias :add_data! :give!
     end # module InstanceMethods
-
   end # module Base
-
 end # module DataProvider
