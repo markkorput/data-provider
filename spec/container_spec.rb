@@ -131,6 +131,60 @@ describe DataProvider::Container do
     end
   end
 
+  describe "#add!" do
+    let(:odd_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provides({1 => 'one'})
+        c.provider :three do 3 end
+      end
+    }
+
+    let(:odd_overwrite_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provides({1 => 'Uno', :five => 555})
+        c.provider :three do :tres end
+      end
+    }
+
+    let(:container){
+      DataProvider::Container.new.tap do |container|
+        container.provides({2 => '1'})
+        container.provider :four do '4' end
+        container.add! odd_providers
+      end
+    }
+
+    it "lets you add providers from another container" do
+      expect(container.has_provider?(1)).to eq true
+      expect(container.has_provider?(2)).to eq true
+      expect(container.has_provider?(:three)).to eq true
+      expect(container.has_provider?(:four)).to eq true
+      # expect(BasicProviders.new.take(1)).to eq 'one'
+      expect(container.take(:three)).to eq 3
+    end
+
+    it "lets you add providers from another container at runtime" do
+      expect(container.has_provider?(:five)).to eq false
+      container.add!(odd_overwrite_providers)
+      expect(container.has_provider?(:five)).to eq true
+    end
+
+    # for the following test the providers of OddOverwriteProviders
+    # have already been added (by the previous test)
+    it "lets you overwrite providers" do
+      container.add!(odd_overwrite_providers)
+      expect(container.take(1)).to eq 'Uno'
+      expect(container.take(:three)).to eq :tres
+    end
+
+    it "includes providers which can be overwritten" do
+      cont = DataProvider::Container.new
+      cont.add! odd_providers
+      cont.provider :three do '33' end
+      expect(cont.take(:three)).to eq '33'
+    end
+  end
+
   describe "#add" do
     let(:odd_providers){
       DataProvider::Container.new.tap do |c|
@@ -155,33 +209,168 @@ describe DataProvider::Container do
     }
 
     it "lets you add providers from another container" do
-      expect(container.has_provider?(1)).to eq true
+      expect(container.has_provider?(1)).to eq false
       expect(container.has_provider?(2)).to eq true
-      expect(container.has_provider?(:three)).to eq true
+      expect(container.has_provider?(:three)).to eq false
       expect(container.has_provider?(:four)).to eq true
       # expect(BasicProviders.new.take(1)).to eq 'one'
-      expect(container.take(:three)).to eq 3
+      # expect(container.take(:three)).to eq 3
     end
 
     it "lets you add providers from another container at runtime" do
       expect(container.has_provider?(:five)).to eq false
-      container.add(odd_overwrite_providers)
-      expect(container.has_provider?(:five)).to eq true
+      new_container = container.add(odd_overwrite_providers)
+      expect(container.has_provider?(:five)).to eq false
+      expect(new_container.has_provider?(:five)).to eq true
     end
 
     # for the following test the providers of OddOverwriteProviders
     # have already been added (by the previous test)
     it "lets you overwrite providers" do
-      container.add(odd_overwrite_providers)
-      expect(container.take(1)).to eq 'Uno'
-      expect(container.take(:three)).to eq :tres
+      new_container = container.add(odd_overwrite_providers)
+      expect(container.has_provider?(1)).to eq false
+      expect(new_container.take(1)).to eq 'Uno'
+      expect(container.has_provider?(:three)).to eq false
+      expect(new_container.take(:three)).to eq :tres
     end
 
     it "includes providers which can be overwritten" do
       cont = DataProvider::Container.new
-      cont.add odd_providers
-      cont.provider :three do '33' end
-      expect(cont.take(:three)).to eq '33'
+      odd = cont.add odd_providers
+      odd.provider :three do '33' end
+      expect(odd.take(:three)).to eq '33'
+    end
+  end
+
+  describe "#add_scoped!" do
+    let(:child_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provider :name do "child" end
+      end
+    }
+
+    let(:grandchild_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provider :name do "grandchild" end
+        c.provider [:age] do 1 end
+        c.provides({
+          :mommy => 'Wilma',
+          :daddy => 'Fret'
+        })
+
+        c.provider :mobility do
+          'crawling'
+        end
+
+        c.provider :movement do
+          take(:mobility)
+        end
+
+        c.provider :symbol do
+          'Symbol provider'
+        end
+
+        c.provider :sym do
+          take(:symbol)
+        end
+
+        c.provider ['string'] do
+          'String provider: ' + take(:symbol)
+        end
+      end
+    }
+
+    let(:container){
+      DataProvider::Container.new.tap do |c|
+        c.provider :parent do 'parent' end
+        c.add_scoped! child_providers, :scope => :child
+        c.add_scoped! grandchild_providers, :scope => [:child, :child]
+      end
+    }
+
+    it 'let you array-prefix the providers of an included container' do
+      expect(container.has_provider?(:parent)).to eq true
+      expect(container.has_provider?(:name)).to eq false
+      expect(container.has_provider?([:child, :name])).to eq true
+      expect(container.has_provider?([:child, :age])).to eq false
+      expect(container.has_provider?([:child, :child, :name])).to eq true
+      expect(container.has_provider?([:child, :child, :age])).to eq true
+      expect(container.has_provider?([:child, :child, :mommy])).to eq true
+      expect(container.has_provider?([:child, :child, :daddy])).to eq true
+      expect(container.take([:child, :name])).to eq 'child'
+      expect(container.take([:child, :child, :name])).to eq 'grandchild'
+      expect(container.take([:child, :child, :age])).to eq 1
+      expect(container.take([:child, :child, :mommy])).to eq 'Wilma'
+      expect(container.take([:child, :child, :daddy])).to eq 'Fret'
+    end
+
+    it "#take acts like #scoped_take inside providers works for add_scoped containers as well" do
+      expect( container.take([:child, :child, :mobility]) ).to eq 'crawling'
+      expect( container.take([:child, :child, :movement]) ).to eq 'crawling'
+    end
+
+    it "doesn't act up when mixing symbols and strings in array identifiers" do
+      expect( container.take([:child, :child, 'string']) ).to eq 'String provider: Symbol provider'
+    end
+
+    it "lets #take act like #scoped_take recursively" do
+      expect( container.take([:child, :child, :sym]) ).to eq 'Symbol provider'
+    end
+
+    it 'respect provider order/priority' do
+      c1 = DataProvider::Container.new
+      c1.provider 'version' do 1 end
+
+      c2 = DataProvider::Container.new
+      c2.add! c1
+      c2.provider 'version' do 2 end
+
+      c = DataProvider::Container.new
+      c.provider 'version' do 0 end
+      c.provider ['module', 'version'] do -1 end
+      c.add_scoped! c2, :scope => 'module'
+
+      expect(c.try_take('version')).to eq 0
+      expect(c.try_take(['module', 'version'])).to eq 2
+    end
+
+    it 'works recursively' do
+      c1 = DataProvider::Container.new
+      c1.provider ['name'] do 'Johnny Blaze' end
+
+      expect(c1.provider_identifiers).to eq [['name']]
+
+      c2 = DataProvider::Container.new.add(c1)
+      expect(c2.provider_identifiers).to eq [['name']]
+
+      c3 = DataProvider::Container.new
+      c3.provider ['name'] do 'Mr. Nobody' end
+      # the next line adds the provider ['person', 'name'] to m3
+      c3.add_scoped! c2, :scope => 'person'
+
+      # providers are internally added in reverse order
+      expect(c3.provider_identifiers).to eq [['person', 'name'], ['name']]
+
+      c = DataProvider::Container.new
+      c.add_scoped! c3, :scope => 'creatures'
+
+      expect(c.has_provider?('name')).to eq false
+      expect(c.has_provider?(['name'])).to eq false
+      expect(c.has_provider?(['person', 'name'])).to eq false
+      expect(c.has_provider?(['creatures', 'person', 'name'])).to eq true
+      expect(c.take(['creatures', 'person', 'name'])).to eq 'Johnny Blaze'
+    end
+
+    it "doesn't affect the added container" do
+      c1 = DataProvider::Container.new
+      c1.provider ['name'] do 'Johnny Blaze' end
+
+      expect(c1.provider_identifiers).to eq [['name']]
+
+      c = DataProvider::Container.new
+      c.add_scoped! c1, :scope => 'prefix'
+
+      expect(c1.provider_identifiers).to eq [['name']]
     end
   end
 
@@ -234,30 +423,33 @@ describe DataProvider::Container do
     it 'let you array-prefix the providers of an included container' do
       expect(container.has_provider?(:parent)).to eq true
       expect(container.has_provider?(:name)).to eq false
-      expect(container.has_provider?([:child, :name])).to eq true
+      expect(container.has_provider?([:child, :name])).to eq false
       expect(container.has_provider?([:child, :age])).to eq false
-      expect(container.has_provider?([:child, :child, :name])).to eq true
-      expect(container.has_provider?([:child, :child, :age])).to eq true
-      expect(container.has_provider?([:child, :child, :mommy])).to eq true
-      expect(container.has_provider?([:child, :child, :daddy])).to eq true
-      expect(container.take([:child, :name])).to eq 'child'
-      expect(container.take([:child, :child, :name])).to eq 'grandchild'
-      expect(container.take([:child, :child, :age])).to eq 1
-      expect(container.take([:child, :child, :mommy])).to eq 'Wilma'
-      expect(container.take([:child, :child, :daddy])).to eq 'Fret'
+      expect(container.has_provider?([:child, :child, :name])).to eq false
+      expect(container.has_provider?([:child, :child, :age])).to eq false
+      expect(container.has_provider?([:child, :child, :mommy])).to eq false
+      expect(container.has_provider?([:child, :child, :daddy])).to eq false
+      # expect(container.take([:child, :name])).to eq 'child'
+      # expect(container.take([:child, :child, :name])).to eq 'grandchild'
+      # expect(container.take([:child, :child, :age])).to eq 1
+      # expect(container.take([:child, :child, :mommy])).to eq 'Wilma'
+      # expect(container.take([:child, :child, :daddy])).to eq 'Fret'
     end
 
     it "#take acts like #scoped_take inside providers works for add_scoped containers as well" do
-      expect( container.take([:child, :child, :mobility]) ).to eq 'crawling'
-      expect( container.take([:child, :child, :movement]) ).to eq 'crawling'
+      newcontainer = container.add_scoped(child_providers, :scope => :child).add_scoped(grandchild_providers, :scope => [:child, :child])
+      expect( newcontainer.take([:child, :child, :mobility]) ).to eq 'crawling'
+      expect( newcontainer.take([:child, :child, :movement]) ).to eq 'crawling'
     end
 
     it "doesn't act up when mixing symbols and strings in array identifiers" do
-      expect( container.take([:child, :child, 'string']) ).to eq 'String provider: Symbol provider'
+      newcontainer = container.add_scoped(child_providers, :scope => :child).add_scoped(grandchild_providers, :scope => [:child, :child])
+      expect( newcontainer.take([:child, :child, 'string']) ).to eq 'String provider: Symbol provider'
     end
 
     it "lets #take act like #scoped_take recursively" do
-      expect( container.take([:child, :child, :sym]) ).to eq 'Symbol provider'
+      newcontainer = container.add_scoped(child_providers, :scope => :child).add_scoped(grandchild_providers, :scope => [:child, :child])
+      expect( newcontainer.take([:child, :child, :sym]) ).to eq 'Symbol provider'
     end
 
     it 'respect provider order/priority' do
@@ -271,10 +463,10 @@ describe DataProvider::Container do
       c = DataProvider::Container.new
       c.provider 'version' do 0 end
       c.provider ['module', 'version'] do -1 end
-      c.add_scoped c2, :scope => 'module'
+      cc = c.add_scoped c2, :scope => 'module'
 
-      expect(c.try_take('version')).to eq 0
-      expect(c.try_take(['module', 'version'])).to eq 2
+      expect(cc.try_take('version')).to eq 0
+      expect(cc.try_take(['module', 'version'])).to eq 2
     end
 
     it 'works recursively' do
@@ -289,19 +481,21 @@ describe DataProvider::Container do
       c3 = DataProvider::Container.new
       c3.provider ['name'] do 'Mr. Nobody' end
       # the next line adds the provider ['person', 'name'] to m3
-      c3.add_scoped c2, :scope => 'person'
+      c4 = c3.add_scoped c2, :scope => 'person'
 
       # providers are internally added in reverse order
-      expect(c3.provider_identifiers).to eq [['person', 'name'], ['name']]
+      expect(c4.provider_identifiers).to eq [['person', 'name'], ['name']]
 
       c = DataProvider::Container.new
-      c.add_scoped c3, :scope => 'creatures'
+      cc = c.add_scoped c3, :scope => 'creatures'
 
-      expect(c.has_provider?('name')).to eq false
-      expect(c.has_provider?(['name'])).to eq false
-      expect(c.has_provider?(['person', 'name'])).to eq false
-      expect(c.has_provider?(['creatures', 'person', 'name'])).to eq true
-      expect(c.take(['creatures', 'person', 'name'])).to eq 'Johnny Blaze'
+      expect(cc.has_provider?('name')).to eq false
+      expect(cc.has_provider?(['name'])).to eq false
+      expect(cc.has_provider?(['person', 'name'])).to eq false
+      expect(cc.has_provider?(['creatures', 'person', 'name'])).to eq false
+      ccc = cc.add_scoped c4, :scope => 'creatures'
+      expect(ccc.has_provider?(['creatures', 'person', 'name'])).to eq true
+      expect(ccc.take(['creatures', 'person', 'name'])).to eq 'Johnny Blaze'
     end
 
     it "doesn't affect the added container" do
@@ -311,7 +505,7 @@ describe DataProvider::Container do
       expect(c1.provider_identifiers).to eq [['name']]
 
       c = DataProvider::Container.new
-      c.add_scoped c1, :scope => 'prefix'
+      c2 = c.add_scoped c1, :scope => 'prefix'
 
       expect(c1.provider_identifiers).to eq [['name']]
     end

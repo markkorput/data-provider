@@ -132,7 +132,7 @@ module DataProvider
     #
 
     # adds all the providers defined in the given module to this class
-    def add(container)
+    def add!(container)
       ### add container's providers ###
       # internally providers are added in reverse order (last one first)
       # so at runtime you it's easy and fast to grab the latest provider
@@ -151,9 +151,14 @@ module DataProvider
       give!(container.data)
     end
 
+    def add(container)
+      # make a copy and add the container to that 
+      give({}).add!(container)
+    end
+
     # adds all the providers defined in the given module to this class,
     # but turns their identifiers into array and prefixes the array with the :scope option
-    def add_scoped container, _options = {}
+    def add_scoped! container, _options = {}
       ### add container's providers ###
       container.providers.reverse.each do |definition|
         identifier = [definition[0]].flatten
@@ -173,18 +178,27 @@ module DataProvider
       give!(container.data)
     end
 
+    # adds all the providers defined in the given module to this class,
+    # but turns their identifiers into array and prefixes the array with the :scope option
+    def add_scoped container, _options = {}
+      copy.add_scoped!(container, _options)
+    end
+
     #
     # Data-related methods
     #
+
+    def copy
+      c = self.class.new
+      c.add!(self)
+    end
 
     def data
       @data || {}
     end
 
     def give(_data = {})
-      c = self.class.new
-      c.add(self)
-      c.give!(_data)
+      copy.give!(_data)
     end
 
     alias :add_scope :give

@@ -45,15 +45,15 @@ module DataProvider
       end
 
       def add _module
-        return dpc.add(_module) if _module.is_a?(DataProvider::Container)
+        return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
         include _module
-        dpc.add(_module.dpc)
+        dpc.add!(_module.dpc)
       end
 
       def add_scoped _module, options = {}
-        return dpc.add_scoped(_module, options) if _module.is_a?(DataProvider::Container)
+        return dpc.add_scoped!(_module, options) if _module.is_a?(DataProvider::Container)
         include _module
-        dpc.add_scoped _module.dpc, options
+        dpc.add_scoped! _module.dpc, options
       end
 
       def provider_missing *args, &block
@@ -80,7 +80,7 @@ module DataProvider
       def data_provider_container
         @data_provider_container ||= options[:dpc] || DataProvider::Container.new.tap do |c|
           # automatically adopt all class-level providers/provides/data
-          c.add self.class.dpc
+          c.add! self.class.dpc
         end
       end
 
