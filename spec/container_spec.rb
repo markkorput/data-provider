@@ -7,7 +7,7 @@ describe DataProvider::Container do
       container.provider :sum, :requires => [:array] do
         sum = 0
 
-        given(:array).each do |number|
+        (given(:array) || []).each do |number|
           sum += number.to_i
         end
 
@@ -132,27 +132,29 @@ describe DataProvider::Container do
   end
 
   describe "#add" do
-    module OddProviders
-      include DataProvider::Base
-      provides({1 => 'one'})
-      provider :three do 3 end
-    end
-
-    module OddOverwriteProviders
-      include DataProvider::Base
-      provides({1 => 'Uno', :five => 555})
-      provider :three do :tres end
-    end
-
-    let(:container){
-      DataProvider::Container.new.tap do |container|
-        container.provider({2 => '1'})
-        container.provider :four do '4' end
-        container.add OddProviders
+    let(:odd_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provides({1 => 'one'})
+        c.provider :three do 3 end
       end
     }
 
-    it "lets you add providers from another module" do
+    let(:odd_overwrite_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provides({1 => 'Uno', :five => 555})
+        c.provider :three do :tres end
+      end
+    }
+
+    let(:container){
+      DataProvider::Container.new.tap do |container|
+        container.provides({2 => '1'})
+        container.provider :four do '4' end
+        container.add odd_providers
+      end
+    }
+
+    it "lets you add providers from another container" do
       expect(container.has_provider?(1)).to eq true
       expect(container.has_provider?(2)).to eq true
       expect(container.has_provider?(:three)).to eq true
@@ -161,72 +163,75 @@ describe DataProvider::Container do
       expect(container.take(:three)).to eq 3
     end
 
-    it "lets you add providers from another module at runtime" do
+    it "lets you add providers from another container at runtime" do
       expect(container.has_provider?(:five)).to eq false
-      container.add(OddOverwriteProviders)
+      container.add(odd_overwrite_providers)
       expect(container.has_provider?(:five)).to eq true
     end
 
     # for the following test the providers of OddOverwriteProviders
     # have already been added (by the previous test)
     it "lets you overwrite providers" do
+      container.add(odd_overwrite_providers)
       expect(container.take(1)).to eq 'Uno'
       expect(container.take(:three)).to eq :tres
     end
 
     it "includes providers which can be overwritten" do
       cont = DataProvider::Container.new
-      cont.add OddProviders
+      cont.add odd_providers
       cont.provider :three do '33' end
       expect(cont.take(:three)).to eq '33'
     end
   end
 
   describe "#add_scoped" do
-    module ChildProviders
-      include DataProvider::Base
-      provider :name do "child" end
-    end
-
-    module GrandchildProviders
-      include DataProvider::Base
-      provider :name do "grandchild" end
-      provider [:age] do 1 end
-      provides({
-        :mommy => 'Wilma',
-        :daddy => 'Fret'
-      })
-
-      provider :mobility do
-        'crawling'
+    let(:child_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provider :name do "child" end
       end
+    }
 
-      provider :movement do
-        take(:mobility)
-      end
+    let(:grandchild_providers){
+      DataProvider::Container.new.tap do |c|
+        c.provider :name do "grandchild" end
+        c.provider [:age] do 1 end
+        c.provides({
+          :mommy => 'Wilma',
+          :daddy => 'Fret'
+        })
 
-      provider :symbol do
-        'Symbol provider'
-      end
+        c.provider :mobility do
+          'crawling'
+        end
 
-      provider :sym do
-        take(:symbol)
-      end
+        c.provider :movement do
+          take(:mobility)
+        end
 
-      provider ['string'] do
-        'String provider: ' + take(:symbol)
+        c.provider :symbol do
+          'Symbol provider'
+        end
+
+        c.provider :sym do
+          take(:symbol)
+        end
+
+        c.provider ['string'] do
+          'String provider: ' + take(:symbol)
+        end
       end
-    end
+    }
 
     let(:container){
       DataProvider::Container.new.tap do |c|
         c.provider :parent do 'parent' end
-        c.add_scoped ChildProviders, :scope => :child
-        c.add_scoped GrandchildProviders, :scope => [:child, :child]
+        c.add_scoped child_providers, :scope => :child
+        c.add_scoped grandchild_providers, :scope => [:child, :child]
       end
     }
 
-    it 'let you array-prefix the providers of an included module' do
+    it 'let you array-prefix the providers of an included container' do
       expect(container.has_provider?(:parent)).to eq true
       expect(container.has_provider?(:name)).to eq false
       expect(container.has_provider?([:child, :name])).to eq true
@@ -242,9 +247,9 @@ describe DataProvider::Container do
       expect(container.take([:child, :child, :daddy])).to eq 'Fret'
     end
 
-    it "#take acts like #scoped_take inside providers works for add_scoped modules as well" do
-      expect( contaner.take([:child, :child, :mobility]) ).to eq 'crawling'
-      expect( contaner.take([:child, :child, :movement]) ).to eq 'crawling'
+    it "#take acts like #scoped_take inside providers works for add_scoped containers as well" do
+      expect( container.take([:child, :child, :mobility]) ).to eq 'crawling'
+      expect( container.take([:child, :child, :movement]) ).to eq 'crawling'
     end
 
     it "doesn't act up when mixing symbols and strings in array identifiers" do
@@ -256,55 +261,41 @@ describe DataProvider::Container do
     end
 
     it 'respect provider order/priority' do
-      m1 = Module.new do
-        include DataProvider::Base
-        provider 'version' do 1 end
-      end
+      c1 = DataProvider::Container.new
+      c1.provider 'version' do 1 end
 
-      m2 = Module.new do
-        include DataProvider::Base
-        add m1
-        provider 'version' do 2 end
-      end
+      c2 = DataProvider::Container.new
+      c2.add c1
+      c2.provider 'version' do 2 end
 
       c = DataProvider::Container.new
       c.provider 'version' do 0 end
       c.provider ['module', 'version'] do -1 end
-      c.add_scoped m2, :scope => 'module'
+      c.add_scoped c2, :scope => 'module'
 
       expect(c.try_take('version')).to eq 0
       expect(c.try_take(['module', 'version'])).to eq 2
     end
 
     it 'works recursively' do
-      m1 = Module.new do
-        include DataProvider::Base
-        provider ['name'] do 'Johnny Blaze' end
-      end
+      c1 = DataProvider::Container.new
+      c1.provider ['name'] do 'Johnny Blaze' end
 
-      expect(m1.provider_identifiers).to eq [['name']]
+      expect(c1.provider_identifiers).to eq [['name']]
 
-      m2 = Module.new do
-        include DataProvider::Base
-        # this next line adds the provider ['name'] to m2
-        add m1
-      end
+      c2 = DataProvider::Container.new.add(c1)
+      expect(c2.provider_identifiers).to eq [['name']]
 
-      expect(m2.provider_identifiers).to eq [['name']]
-
-      m3 = Module.new do
-        include DataProvider::Base
-        # this provider will end up like ['creatures', 'name'] in c1
-        provider ['name'] do 'Mr. Nobody' end
-        # the next line adds the provider ['person', 'name'] to m3
-        add_scoped m2, :scope => 'person'
-      end
+      c3 = DataProvider::Container.new
+      c3.provider ['name'] do 'Mr. Nobody' end
+      # the next line adds the provider ['person', 'name'] to m3
+      c3.add_scoped c2, :scope => 'person'
 
       # providers are internally added in reverse order
-      expect(m3.provider_identifiers).to eq [['person', 'name'], ['name']]
+      expect(c3.provider_identifiers).to eq [['person', 'name'], ['name']]
 
       c = DataProvider::Container.new
-      c.add_scoped m3, :scope => 'creatures'
+      c.add_scoped c3, :scope => 'creatures'
 
       expect(c.has_provider?('name')).to eq false
       expect(c.has_provider?(['name'])).to eq false
@@ -313,18 +304,16 @@ describe DataProvider::Container do
       expect(c.take(['creatures', 'person', 'name'])).to eq 'Johnny Blaze'
     end
 
-    it "doesn't affect the added module" do
-      m1 = Module.new do
-        include DataProvider::Base
-        provider ['name'] do 'Johnny Blaze' end
-      end
+    it "doesn't affect the added container" do
+      c1 = DataProvider::Container.new
+      c1.provider ['name'] do 'Johnny Blaze' end
 
-      expect(m1.provider_identifiers).to eq [['name']]
+      expect(c1.provider_identifiers).to eq [['name']]
 
       c = DataProvider::Container.new
-      c.add_scoped m1, :scope => 'prefix'
+      c.add_scoped c1, :scope => 'prefix'
 
-      expect(m1.provider_identifiers).to eq [['name']]
+      expect(c1.provider_identifiers).to eq [['name']]
     end
   end
 
@@ -377,7 +366,7 @@ describe DataProvider::Container do
 
   describe "#take" do
     it 'lets you take data from a data provider instance' do
-      expect(container.take(:sum)).to eq 7
+      expect(container.give(:array => [6,9,2]).take(:sum)).to eq 17
       expect(container.take(:static)).to eq 'StaticValue'
     end
 
@@ -402,7 +391,7 @@ describe DataProvider::Container do
 
   describe "#try_take" do
     it "acts like #take when the specified provider is present" do
-      expect(container.try_take(:sum)).to eq 7
+      expect(container.give(:array => [1,2,4]).try_take(:sum)).to eq 7
     end
 
     it "returns nil when the specified provider is not found" do
@@ -443,7 +432,7 @@ describe DataProvider::Container do
   describe "#give" do
     it "lets you give data, creating a new data provider instance" do
       updated = container.give :array => [1,80]
-      expect(container.take(:sum)).to eq 7
+      expect(container.take(:sum)).to eq 0
       expect(updated.take(:sum)).to eq 81
     end
 

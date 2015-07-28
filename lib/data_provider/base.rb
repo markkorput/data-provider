@@ -221,7 +221,7 @@ module DataProvider
         data.has_key?(param_name)
       end
 
-      alias :has_data? got?
+      alias :has_data? :got?
 
       def given(param_name)
         return data[param_name] if got?(param_name)
