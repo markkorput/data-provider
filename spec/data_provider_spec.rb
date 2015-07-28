@@ -668,13 +668,15 @@ describe "Array identifiers" do
 
   it "lets you overwrite existing providers with Array-based identifiers" do
     expect(provider.take([:some, 'Stuff'])).to eq 'SomeStuff'
-
     provider.class.add(ArrayProviderModule)
-    expect(provider.take([:some, 'Stuff'])).to eq 'OtherStuff'
+    # class got updated
+    expect(provider.class.new.take([:some, 'Stuff'])).to eq 'OtherStuff'
+    # already instatiated instances didn't get this memo
+    expect(provider.take([:some, 'Stuff'])).to eq 'SomeStuff'
   end
 end
 
-describe "Mixing regular ruby methods and data providers" do
+describe "Cannot mix regular ruby methods and data providers" do
   module MixedModule
     include DataProvider::Base
 
@@ -702,16 +704,16 @@ describe "Mixing regular ruby methods and data providers" do
   end
 
   describe "custom class methods" do
-    it "lets providers access regular methods" do
+    it "does not let providers access regular methods" do
       obj = MixedClass.new
       expect(obj.func).to eq 'Something Normal Here'
-      expect(obj.take(:pro_vider)).to eq 'Something Normal Here'
+      expect{ obj.take(:pro_vider) }.to raise_error(NameError)
     end
 
-    it "lets module providers access methods from the base class and vice-versa" do
+    it "does not let module providers access methods from the base class or vice-versa" do
       obj = MixedClass.new
       expect(obj.func2).to eq 'More Normal Stuff'
-      expect(obj.take(:module_provider)).to eq 'Something Normal Here, Something Normal Here, More Normal Stuff'
+      expect{obj.take(:module_provider)}.to raise_error(NameError)
     end
   end
 end

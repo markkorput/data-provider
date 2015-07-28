@@ -144,6 +144,9 @@ module DataProvider
       ### add container's provides (simple providers) ###
       self.provides(container.provides)
 
+      ### fallback provider ###
+      @fallback_provider = container.fallback_provider.block if container.fallback_provider
+
       ### add container's data ###
       give!(container.data)
     end
@@ -162,6 +165,9 @@ module DataProvider
       container.provides.each_pair do |key, value|
         provides(([_options[:scope]].flatten.compact + [key].flatten.compact) => value)
       end
+
+      ### fallback provider ###
+      @fallback_provider = container.fallback_provider.block if container.fallback_provider
 
       ### add container's data ###
       give!(container.data)
