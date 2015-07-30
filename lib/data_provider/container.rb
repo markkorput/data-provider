@@ -83,10 +83,9 @@ module DataProvider
       # try to get a provider object
       provider = get_provider(id)
       if provider
-        @scopes ||= []
-        @scopes << (id.is_a?(Array) ? id[0..-2] : [])
+        @stack = (@stack || []) + [id]
         result = (opts[:scope] || self).instance_eval(&provider.block) 
-        @scopes.pop
+        @stack.pop
         # execute provider object's block within the scope of self
         return result
       end
@@ -96,10 +95,9 @@ module DataProvider
         scoped_id = [scope, id].flatten
         provider = get_provider(scoped_id)
         if provider
-          @scopes ||= []
-          @scopes << (scoped_id.is_a?(Array) ? scoped_id[0..-2] : [])
+          @stack = (@stack || []) + [scoped_id]
           result = (opts[:scope] || self).instance_eval(&provider.block) 
-          @scopes.pop
+          @stack.pop
           # execute provider object's block within the scope of self
           return result
         end
@@ -110,10 +108,9 @@ module DataProvider
         # temporarily set the @missing_provider instance variable, so the
         # fallback provider can use it through the missing_provider private method
         @missing_provider = id
-        @scopes ||= []
-        @scopes << (id.is_a?(Array) ? id[0..-2] : [])
+        @stack = (@stack || []) + [id]
         result = (opts[:scope] || self).instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
-        @scopes.pop # = nil
+        @stack.pop # = nil
         @missing_provider = nil
         return result
       end
@@ -238,8 +235,16 @@ module DataProvider
       take(scope + [id].flatten)
     end
 
+    def provider_stack
+      (@stack || []).clone
+    end
+
+    def provider_id
+      provider_stack.last
+    end
+
     def scopes
-      @scopes || []
+      provider_stack.map{|provider_id| provider_id.is_a?(Array) ? provider_id[0..-2] : []}
     end
 
     def scope

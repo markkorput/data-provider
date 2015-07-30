@@ -90,6 +90,14 @@ module DataProvider
       def scopes *args
         dpc.scopes *args
       end
+
+      def provider_stack *args
+        dpc.provider_stack *args
+      end
+
+      def provider_id *args
+        dpc.provider_id *args
+      end
     end
 
     module ClassMethods

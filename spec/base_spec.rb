@@ -691,5 +691,39 @@ describe DataProvider::Base do
         expect(clone.try_take(:new_provider)).to eq "I'm new!"
       end
     end
+
+    describe "#provider_stack" do
+      let(:instance){
+        Class.new(Object) do
+          include DataProvider::Base
+
+          provider :one do
+            take :two
+          end
+          provider :two do
+            provider_stack
+          end
+        end
+      }
+
+      it "gives the provider's callstack" do
+        expect(instance.take(:one)).to eq [:one, :two]
+      end
+    end
+
+    describe "#provider_id" do
+      let(:instance){
+        Class.new(Object) do
+          include DataProvider::Base
+          provider :narcissist do
+            provider_id
+          end
+        end
+      }
+
+      it "give the provider's own id" do
+        expect(instance.take(:narcissist)).to eq :narcissist
+      end
+    end
   end
 end

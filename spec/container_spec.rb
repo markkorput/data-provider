@@ -599,6 +599,83 @@ describe DataProvider::Container do
     end
   end
 
+  describe "#provider_stack" do
+    let(:container){
+      DataProvider::Container.new.tap do |c|
+        c.provider :a do
+          take(:b)
+        end
+        c.provider :b do
+          take(['prefix', :c])
+        end
+        c.provider ['prefix', :c] do
+          take ['prefix', :d]
+        end
+        c.provider ['prefix', :d] do
+          provider_stack
+        end
+      end
+    }
+
+    it "gives providers an array resembling the current provider 'callstack'" do
+      expect(container.take(:a)).to eq [:a, :b, ['prefix', :c], ['prefix', :d]]
+      expect(container.take(:b)).to eq [:b, ['prefix', :c], ['prefix', :d]]
+    end
+  end
+
+  describe "#provider_id" do
+    let(:container){
+      DataProvider::Container.new.tap do |c|
+        c.provider :a do
+          take(:b)
+        end
+        c.provider :b do
+          take(['prefix', :c])
+        end
+        c.provider ['prefix', :c] do
+          take ['prefix', :d]
+        end
+        c.provider ['prefix', :d] do
+          provider_id
+        end
+      end
+    }
+
+    it "gives the id of the current provider" do
+      expect(container.take(:a)).to eq ['prefix', :d]
+      expect(container.take(['prefix', :d])).to eq ['prefix', :d]
+    end
+
+    it "gives nil when called fmor outside a provider" do
+      expect(container.provider_id).to eq nil
+    end
+  end
+
+
+  describe "#scopes" do
+    let(:container){
+      DataProvider::Container.new.tap do |c|
+        c.provider :a do
+          take(:b)
+        end
+        c.provider :b do
+          take(['prefix', :c])
+        end
+        c.provider ['prefix', :c] do
+          take :d # take also looks for :d within its own ['prefix'] scope
+        end
+        c.provider ['prefix', :d] do
+          scopes
+        end
+      end
+    }
+
+    it "gives providers an array resembling the current provider 'callstack'" do
+      expect(container.take(:a)).to eq [[], [], ['prefix'], ['prefix']]
+      expect(container.take(:b)).to eq [[], ['prefix'], ['prefix']]
+    end
+  end
+
   describe "#scope" do
     let(:container){
       DataProvider::Container.new.tap do |c|
