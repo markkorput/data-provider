@@ -71,7 +71,7 @@ module DataProvider
       !fallback_provider.nil?
     end
 
-    def take(id)
+    def take(id, opts = {})
       logger.debug "DataProvider::Container#take with id: #{id.inspect}"
 
       # first try the simple providers
@@ -85,7 +85,7 @@ module DataProvider
       if provider
         @scopes ||= []
         @scopes << (id.is_a?(Array) ? id[0..-2] : [])
-        result = instance_eval(&provider.block) 
+        result = (opts[:scope] || self).instance_eval(&provider.block) 
         @scopes.pop
         # execute provider object's block within the scope of self
         return result
@@ -98,7 +98,7 @@ module DataProvider
         if provider
           @scopes ||= []
           @scopes << (scoped_id.is_a?(Array) ? scoped_id[0..-2] : [])
-          result = instance_eval(&provider.block) 
+          result = (opts[:scope] || self).instance_eval(&provider.block) 
           @scopes.pop
           # execute provider object's block within the scope of self
           return result
@@ -112,8 +112,9 @@ module DataProvider
         @missing_provider = id
         @scopes ||= []
         @scopes << (id.is_a?(Array) ? id[0..-2] : [])
-        result = instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
-        @scopes = nil
+        result = (opts[:scope] || self).instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
+        @scopes.pop # = nil
+        @missing_provider = nil
         return result
       end
 
@@ -122,7 +123,7 @@ module DataProvider
     end
 
     def try_take(id, opts = {})
-      return take(id) if self.has_provider?(id) || self.fallback_provider?
+      return take(id, opts) if self.has_provider?(id) || self.fallback_provider?
       logger.debug "Try for missing provider: #{id.inspect}"
       return nil
     end
@@ -229,6 +230,22 @@ module DataProvider
 
     alias :has_data? :got?
 
+    def missing_provider
+      @missing_provider
+    end
+
+    def scoped_take(id)
+      take(scope + [id].flatten)
+    end
+
+    def scopes
+      @scopes || []
+    end
+
+    def scope
+      scopes.last || []
+    end
+
   private
 
     def add_provider(identifier, opts = {}, block = nil)
@@ -250,22 +267,6 @@ module DataProvider
     def get_provider(id)
       args = providers.find{|args| args.first == id}
       return args.nil? ? nil : Provider.new(*args)
-    end
-
-    def scoped_take(id)
-      take(scope + [id].flatten)
-    end
-
-    def scopes
-      @scopes || []
-    end
-
-    def scope
-      scopes.last || []
-    end
-
-    def missing_provider
-      @missing_provider
     end
   end # class Container
 end # module DataProvider

@@ -74,7 +74,7 @@ describe "Array identifiers" do
   end
 end
 
-describe "Cannot mix regular ruby methods and data providers" do
+describe "mixing regular ruby methods and data providers" do
   module MixedModule
     include DataProvider::Base
 
@@ -105,13 +105,13 @@ describe "Cannot mix regular ruby methods and data providers" do
     it "does not let providers access regular methods" do
       obj = MixedClass.new
       expect(obj.func).to eq 'Something Normal Here'
-      expect{ obj.take(:pro_vider) }.to raise_error(NameError)
+      expect(obj.take(:pro_vider)).to eq 'Something Normal Here'
     end
 
     it "does not let module providers access methods from the base class or vice-versa" do
       obj = MixedClass.new
       expect(obj.func2).to eq 'More Normal Stuff'
-      expect{obj.take(:module_provider)}.to raise_error(NameError)
+      expect(obj.take(:module_provider)).to eq 'Something Normal Here, Something Normal Here, More Normal Stuff'
     end
   end
 end

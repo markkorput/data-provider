@@ -45,15 +45,13 @@ module DataProvider
         dpc.provider_missing *args, &block
       end
 
-
-      def take(*args)
-        dpc.take(*args)
+      def take(id, opts = {})
+        dpc.take(id, opts.merge(:scope => self))
       end
 
-      def try_take(*args)
-        dpc.try_take(*args)
+      def try_take(id, opts = {})
+        dpc.try_take(id, opts.merge(:scope => self))
       end
-
 
       def got?(*args)
         dpc.got?(*args)
@@ -69,23 +67,28 @@ module DataProvider
 
       def give! *args
         dpc.give! *args
+        return self
       end
 
       alias :add_scope! :give!
       alias :add_data! :give!
 
-      def add! _module
-        return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
-        include _module if self.respond_to?(:include) # only for classes, not for instances
-        dpc.add!(_module.dpc)
-        return self
+      private
+
+      def missing_provider *args
+        dpc.missing_provider *args
       end
 
-      def add_scoped! _module, options = {}
-        return dpc.add_scoped!(_module, options) if _module.is_a?(DataProvider::Container)
-        include _module
-        dpc.add_scoped! _module.dpc, options
-        return self
+      def scoped_take *args
+        dpc.scoped_take *args
+      end
+
+      def scope *args
+        dpc.scope *args
+      end
+
+      def scopes *args
+        dpc.scopes *args
       end
     end
 
@@ -111,11 +114,35 @@ module DataProvider
       # can't copy self on a class-level
       def give *args
         dpc.give! *args
+        return self
       end
 
       # alias :give :give!
       alias :add_scope :give
       alias :add_data :give
+
+      def add! _module
+        if _module.is_a?(DataProvider::Container)
+          raise _module.inspect
+          dpc.add!(_module)
+        else
+          dpc.add!(_module.dpc)
+        end
+
+        include _module
+        return self
+      end
+
+      def add_scoped! _module, options = {}
+        if _module.is_a?(DataProvider::Container)
+          dpc.add_scoped!(_module, options) 
+        else
+          dpc.add_scoped! _module.dpc, options
+        end
+
+        include _module
+        return self
+      end
     end # module ClassMethods
 
 
@@ -163,6 +190,27 @@ module DataProvider
 
       alias :add_scope :give
       alias :add_data :give
+
+      def add! _module
+        if _module.is_a?(DataProvider::Container)
+          raise _module.inspect
+          dpc.add!(_module)
+        else
+          dpc.add!(_module.dpc)
+        end
+
+        return self
+      end
+
+      def add_scoped! _module, options = {}
+        if _module.is_a?(DataProvider::Container)
+          dpc.add_scoped!(_module, options) 
+        else
+          dpc.add_scoped! _module.dpc, options
+        end
+
+        return self
+      end
     end # module InstanceMethods
   end # module Base
 end # module DataProvider

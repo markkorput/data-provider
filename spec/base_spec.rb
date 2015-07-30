@@ -466,6 +466,16 @@ describe DataProvider::Base do
       it "can act like #scoped_take recursively" do
         expect(provider.take([:identification, :ID])).to eq 'Stephen William Bragg'
       end
+
+      it "executes providers with the Base-class instance as scope" do
+        klass = Class.new(Object) do
+          include DataProvider::Base
+          provider :klasss do self.class end
+        end
+
+        instance = klass.new
+        expect(instance.take(:klasss)).to eq klass
+      end
     end
 
     describe "#try_take" do
@@ -475,6 +485,16 @@ describe DataProvider::Base do
 
       it "returns nil when the specified provider is not found" do
         expect(provider.try_take(:square_root)).to eq nil
+      end
+
+      it "executes providers with the Base-class instance as scope" do
+        klass = Class.new(Object) do
+          include DataProvider::Base
+          provider :klasss do self.class end
+        end
+
+        instance = klass.new
+        expect(instance.try_take(:klasss)).to eq klass
       end
     end
 
@@ -518,6 +538,10 @@ describe DataProvider::Base do
         expect(updated_provider.take(:sum)).to eq 81
       end
 
+      it "returns an instance of its own class" do
+        expect(provider.give(:what => :ever).class).to eq provider.class
+      end
+
       it "allows for linked notation" do
         expect(provider.give(:array => [7, -3]).take(:sum)).to eq 4
       end
@@ -537,6 +561,10 @@ describe DataProvider::Base do
         expect(prov.take(:sum)).to eq 92
         prov.give!(:array => [3,90])
         expect(prov.take(:sum)).to eq 93
+      end
+
+      it "returns self" do
+        expect(provider.give!(:some => 'thing')).to be provider
       end
 
       it "allows for linked notation" do

@@ -511,7 +511,7 @@ describe DataProvider::Container do
     end
   end
 
-  describe "provider_missing" do
+  describe "#provider_missing" do
     let(:container){
       DataProvider::Container.new.tap do |c|
         c.provider_missing do
@@ -525,14 +525,20 @@ describe DataProvider::Container do
       expect(container.take(:message)).to eq "This provider don't exist!"
     end
 
-    it "provides the missing provider id through the private missing_provider method" do
-      c = DataProvider::Container.new
-      c.provider_missing do
-        "Missing #{missing_provider}"
+    describe "#missing_provider" do
+      it "provides the missing provider id through the missing_provider method" do
+        c = DataProvider::Container.new
+        c.provider_missing do
+          "Missing #{missing_provider}"
+        end
+
+        expect(c.take(:something)).to eq 'Missing something'
       end
 
-      expect(c.take(:something)).to eq 'Missing something'
-      expect{c.missing_provider}.to raise_error(NoMethodError)
+      it "returns nil when called from anywhere else than the fallback provider" do
+        # expect{c.missing_provider}.to raise_error(NoMethodError)
+        expect(container.missing_provider).to eq nil
+      end
     end
 
     it 'calls the fallback provider when using try_take with an unknown provider' do
