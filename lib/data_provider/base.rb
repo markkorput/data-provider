@@ -78,12 +78,14 @@ module DataProvider
         return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
         include _module if self.respond_to?(:include) # only for classes, not for instances
         dpc.add!(_module.dpc)
+        return self
       end
 
       def add_scoped! _module, options = {}
         return dpc.add_scoped!(_module, options) if _module.is_a?(DataProvider::Container)
         include _module
         dpc.add_scoped! _module.dpc, options
+        return self
       end
     end
 

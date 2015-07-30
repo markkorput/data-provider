@@ -601,17 +601,24 @@ describe DataProvider::Base do
     end
 
     describe "#add!" do
-      it "adds datap providers from a module to itself" do
-        m = Module.new do
+      let(:m){
+        Module.new do
           include DataProvider::Base
           provider :new_provider do
             "I'm new!"
           end
         end
+      }
 
-        klass = Class.new(Object) do include DataProvider::Base end
-        instance = klass.new
+      let(:klass){
+        Class.new(Object) do include DataProvider::Base end
+      }
 
+      let(:instance){
+        klass.new
+      }
+
+      it "adds data providers from a module to itself" do
         # before
         expect(instance.has_provider?(:new_provider)).to eq false
         expect(instance.try_take(:new_provider)).to eq nil
@@ -622,6 +629,10 @@ describe DataProvider::Base do
         # after
         expect(instance.has_provider?(:new_provider)).to eq true
         expect(instance.try_take(:new_provider)).to eq "I'm new!"
+      end
+
+      it "returns self" do
+        expect(instance.add!(m)).to be instance
       end
     end
 
