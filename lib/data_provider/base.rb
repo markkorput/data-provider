@@ -76,7 +76,7 @@ module DataProvider
 
       def add! _module
         return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
-        include _module
+        include _module if self.respond_to?(:include) # only for classes, not for instances
         dpc.add!(_module.dpc)
       end
 
