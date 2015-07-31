@@ -208,6 +208,33 @@ describe DataProvider::Base do
 
         expect(c.new.take(:aa)).to eq 'aa2'
       end
+
+      it "includes a module as well, so normal methods are added as well" do
+        m = Module.new do
+          include DataProvider::Base
+          provider :mprovider do mfunc end
+          def mfunc
+            'Methodized!'
+          end
+        end
+
+        c = Class.new(Object) do
+          include DataProvider::Base
+          add m
+
+          def cfunc1
+            take(:cprovider)
+          end
+
+          provider :cprovider do cfunc2 end
+
+          def cfunc2
+            take :mprovider
+          end
+        end
+
+        expect(c.new.cfunc1).to eq 'Methodized!'
+      end
     end
 
     describe "#add_scoped" do
@@ -662,6 +689,26 @@ describe DataProvider::Base do
       it "returns self" do
         expect(instance.add!(m)).to be instance
       end
+
+      it "includes a module into the object's class, so normal methods become available as well" do
+        m = Module.new do
+          include DataProvider::Base
+
+          def mfunc
+            take(:cprovider)
+          end
+        end
+
+        c = Class.new(Object) do
+          include DataProvider::Base
+          provider :cprovider do 'Good to be back' end
+        end
+
+        instance = c.new
+        expect{instance.mfunc}.to raise_error(NoMethodError)
+        instance.add!(m)
+        expect(instance.mfunc).to eq 'Good to be back'
+      end
     end
 
     describe "#add" do
@@ -689,6 +736,27 @@ describe DataProvider::Base do
 
         expect(clone.has_provider?(:new_provider)).to eq true
         expect(clone.try_take(:new_provider)).to eq "I'm new!"
+      end
+
+      it "includes a module into the object's class, so normal methods become available as well" do
+        m = Module.new do
+          include DataProvider::Base
+
+          def mfunc
+            take(:cprovider)
+          end
+        end
+
+        c = Class.new(Object) do
+          include DataProvider::Base
+
+          provider :cprovider do 'Good to be back' end
+        end
+
+        instance = c.new
+        expect{instance.mfunc}.to raise_error(NoMethodError)
+        instance.add(m)
+        expect(instance.mfunc).to eq 'Good to be back'
       end
     end
 

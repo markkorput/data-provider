@@ -107,18 +107,6 @@ module DataProvider
 
       alias :dpc :data_provider_container
 
-      def add _module
-        return dpc.add!(_module) if _module.is_a?(DataProvider::Container)
-        include _module
-        dpc.add!(_module.dpc)
-      end
-
-      def add_scoped _module, options = {}
-        return dpc.add_scoped!(_module, options) if _module.is_a?(DataProvider::Container)
-        include _module
-        dpc.add_scoped! _module.dpc, options
-      end
-
       # can't copy self on a class-level
       def give *args
         dpc.give! *args
@@ -131,7 +119,6 @@ module DataProvider
 
       def add! _module
         if _module.is_a?(DataProvider::Container)
-          raise _module.inspect
           dpc.add!(_module)
         else
           dpc.add!(_module.dpc)
@@ -151,6 +138,10 @@ module DataProvider
         include _module
         return self
       end
+
+      # classes/modules can't be cloned, so add behave just like add!
+      alias :add :add!
+      alias :add_scoped :add_scoped!
     end # module ClassMethods
 
 
@@ -179,16 +170,30 @@ module DataProvider
       alias :dpc :data_provider_container
 
       def add _module
+        if _module.is_a?(DataProvider::Container)
+          _dpc = _module
+        else
+          _dpc = _module.dpc
+          self.class.include _module # todo: make optional?
+        end
+
         self.class.new(options.merge({
           :data => nil,
-          :dpc => dpc.add(_module.is_a?(DataProvider::Container) ? _module : _module.dpc)
+          :dpc => dpc.add(_dpc)
         }))
       end
 
       def add_scoped _module, options = {}
+        if _module.is_a?(DataProvider::Container)
+          _dpc = _module
+        else
+          _dpc = _module.dpc
+          self.class.include _module # todo: make optional?
+        end
+
         self.class.new(options.merge({
           :data => nil,
-          :dpc => dpc.add_scoped!(_module.is_a?(DataProvider::Container) ? _module : _module.dpc, options)
+          :dpc => dpc.add_scoped!(_dpc)
         }))
       end
 
@@ -201,12 +206,12 @@ module DataProvider
 
       def add! _module
         if _module.is_a?(DataProvider::Container)
-          raise _module.inspect
           dpc.add!(_module)
         else
           dpc.add!(_module.dpc)
+          self.class.include _module
         end
-
+        
         return self
       end
 
@@ -215,8 +220,9 @@ module DataProvider
           dpc.add_scoped!(_module, options) 
         else
           dpc.add_scoped! _module.dpc, options
+          self.class.include _module
         end
-
+        
         return self
       end
     end # module InstanceMethods
