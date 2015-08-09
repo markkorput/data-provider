@@ -193,7 +193,7 @@ module DataProvider
 
         self.class.new(options.merge({
           :data => nil,
-          :dpc => dpc.add_scoped!(_dpc)
+          :dpc => dpc.add_scoped(_dpc, :scope => options[:scope])
         }))
       end
 

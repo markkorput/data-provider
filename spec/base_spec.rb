@@ -760,6 +760,27 @@ describe DataProvider::Base do
       end
     end
 
+    describe "#add_scoped" do
+      it "adds providers to this object instance" do
+        m = Module.new do
+          include DataProvider::Base
+          provider :imnew do
+            "I'm new!"
+          end
+        end
+
+        klass = Class.new(Object) do include DataProvider::Base end
+        instance = klass.new
+        instance2 = instance.add_scoped(m, :scope => [:what, :ever])
+        # didn't get added to existing instance
+        expect(instance.has_provider?([:what, :ever, :imnew])).to eq false
+        # created new instance with the new scoped provider
+        expect(instance2.has_provider?([:what, :ever, :imnew])).to eq true
+        # unscoped provider was not added to new instance
+        expect(instance2.has_provider?([:imnew])).to eq false
+      end
+    end
+
     describe "#provider_stack" do
       let(:instance){
         Class.new(Object) do
