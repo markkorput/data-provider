@@ -2,245 +2,71 @@ require 'logger'
 
 module DataProvider
 
-  class ProviderMissingException < Exception
-    attr_reader :params
-
-    def initialize(_params = {})
-      @params = _params || {}
-      super(params[:message] || "Tried to take data from missing provider: #{provider_id.inspect}")
-    end
-
-    def provider_id
-      params[:provider_id]
-    end
-  end
-
   module Base
 
     def self.included(base)
       base.class_eval do
         include InstanceMethods
+        include ProxyMethods
         extend ClassMethods
+        extend ProxyMethods
       end
     end
 
-    module ClassMethods
-      # provides, when called with a hash param, will define 'simple providers' (providers
-      # with a simple, static value). When called without a param (or nil) it returns
-      # the current cumulative 'simple providers' hash
-      def provides simple_provides = nil
-        if simple_provides
-          @data_provider ||= {}
-          @data_provider[:provides] ||= {}
-          @data_provider[:provides].merge!(simple_provides)
-          return self
-        end
-        # no data given? just return existing hash
-        (@data_provider || {})[:provides] || {}
+    # both instance- class-level
+    module ProxyMethods
+      def provides *args
+        return dpc.provides if args.length == 0
+        dpc.provides *args
+        return self
       end
 
-      # returns the requested provider as a Provider object
-      def get_provider(id)
-        args = data_provider_definitions.find{|args| args.first == id}
-        return args.nil? ? nil : Provider.new(*args)
+      def provider_identifiers *args
+        dpc.provider_identifiers *args
       end
 
-      def provider_identifiers
-        (provides.keys + data_provider_definitions.map(&:first)).compact.uniq
+      def provider *args, &block
+        dpc.provider *args, &block
       end
 
-      # adds a new provider to the class
-      def provider identifier, opts = {}, &block
-        add_provider(identifier, opts, block_given? ? block : nil)
+      def has_provider? *args
+        dpc.has_provider? *args
       end
 
-      # reader method for the raw data of the currently defined providers
-      def data_provider_definitions
-        ((@data_provider || {})[:provider_args] || [])
-      end
-
-      # returns wether a provider with the given identifier is available
-      def has_provider?(identifier)
-        (provides[identifier] || get_provider(identifier)) != nil
-      end
-
-      def has_providers_with_scope?(args)
-        scope = args.is_a?(Array) ? args : [args]
-        provider_identifiers.find{|id| id.is_a?(Array) && id.length > scope.length && id[0..(scope.length-1)] == scope} != nil
+      def has_providers_with_scope?(*args)
+        dpc.has_providers_with_scope?(*args)
       end
 
       def fallback_provider?
-        !fallback_provider.nil?
+        dpc.fallback_provider?
       end
 
-      # adds all the providers defined in the given module to this class
-      def add(providers_module)
-        data = providers_module.instance_variable_get('@data_provider') || {}
-
-        # internally providers are added in reverse order (last one first)
-        # so at runtime you it's easy and fast to grab the latest provider
-        # so when adding now, we have to reverse the providers to get them in the original order
-        (data[:provider_args] || []).reverse.each do |definition|
-          add_provider(*definition)
-        end
-
-        self.provides(data[:provides] || {})
-        self.include providers_module
+      def provider_missing *args, &block
+        dpc.provider_missing *args, &block
       end
 
-      # adds all the providers defined in the given module to this class,
-      # but turns their identifiers into array and prefixes the array with the :scope option
-      def add_scoped(providers_module, _options = {})
-        data = providers_module.instance_variable_get('@data_provider') || {}
-
-        (data[:provider_args] || []).reverse.each do |definition|
-          identifier = [definition[0]].flatten
-          identifier = [_options[:scope]].flatten.compact + identifier if _options[:scope]
-          add_provider(*([identifier]+definition[1..-1]))
-        end
-
-        (data[:provides] || {}).each_pair do |key, value|
-          provides(([_options[:scope]].flatten.compact + [key].flatten.compact) => value)
-        end
-      end
-
-      def provider_missing &block
-        raise "DataProvider::Base#provider_missing expects a block as an argument" if !block_given?
-        @data_provider ||= {}
-        @data_provider[:provider_missing] = block
-      end
-
-      def fallback_provider
-        block = (@data_provider || {})[:provider_missing]
-        block.nil? ? nil : Provider.new(nil, nil, block)
-      end
-
-      private
-
-      def add_provider(identifier, opts = {}, block = nil)
-        @data_provider ||= {}
-        @data_provider[:provider_args] ||= []
-        @data_provider[:provider_args].unshift [identifier, opts, block]
-      end
-    end # module ClassMethods
-
-
-    module InstanceMethods
-
-      attr_reader :data
-      attr_reader :options
-
-      def initialize(opts = {})
-        @options = opts.is_a?(Hash) ? opts : {}
-        @data = options[:data].is_a?(Hash) ? options[:data] : {}
-      end
-
-      def logger
-        @logger ||= options[:logger] || Logger.new(STDOUT).tap do |lger|
-          lger.level = Logger::WARN
-        end
-      end
-
-      def has_provider?(id)
-        self.class.has_provider?(id)
-      end
-
-      def has_providers_with_scope?(scope)
-        self.class.has_providers_with_scope?(scope)
-      end
-
-      def fallback_provider?
-        self.class.fallback_provider?
-      end
-
-      def take(id)
-        logger.debug "DataProvider#take with id: #{id.inspect}"
-
-        # first try the simple providers
-        if self.class.provides.has_key?(id)
-          provider = self.class.provides[id]
-          return provider.is_a?(Proc) ? provider.call : provider
-        end
-
-        # try to get a provider object
-        provider = self.class.get_provider(id)
-        if provider
-          @scopes ||= []
-          @scopes << (id.is_a?(Array) ? id[0..-2] : [])
-          result = instance_eval(&provider.block) 
-          @scopes.pop
-          # execute provider object's block within the scope of self
-          return result
-        end
-
-        # try to get a scoped provider object
-        if scope.length > 0
-          scoped_id = [scope, id].flatten
-          provider = self.class.get_provider(scoped_id)
-          if provider
-            @scopes ||= []
-            @scopes << (scoped_id.is_a?(Array) ? scoped_id[0..-2] : [])
-            result = instance_eval(&provider.block) 
-            @scopes.pop
-            # execute provider object's block within the scope of self
-            return result
-          end
-        end
-
-        # couldn't find requested provider, let's see if there's a fallback
-        if provider = self.class.fallback_provider
-          # temporarily set the @missing_provider instance variable, so the
-          # fallback provider can use it through the missing_provider private method
-          @missing_provider = id
-          @scopes ||= []
-          @scopes << (id.is_a?(Array) ? id[0..-2] : [])
-          result = instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
-          @scopes = nil
-          return result
-        end
-        # no fallback either? Time for an error
-        raise ProviderMissingException.new(:provider_id => id) 
+      def take(id, opts = {})
+        dpc.take(id, opts.merge(:scope => self))
       end
 
       def try_take(id, opts = {})
-        return take(id) if self.has_provider?(id) || self.fallback_provider?
-        #if opts[:fallback] == true
-        logger.debug "Try for missing provider: #{id.inspect}"
-        return nil
+        dpc.try_take(id, opts.merge(:scope => self))
       end
 
-      private
-
-      def scoped_take(id)
-        take(scope + [id].flatten)
+      def got?(*args)
+        dpc.got?(*args)
       end
 
-      public
+      alias :has_data? :got?
 
-      def got?(param_name)
-        data.has_key?(param_name)
-      end
-
-      alias :has_data? got?
-
-      def given(param_name)
-        return data[param_name] if got?(param_name)
-        logger.error "Data provider expected missing data with identifier: #{param_name.inspect}"
-        # TODO: raise?
-        return nil
+      def given *args
+        dpc.given *args
       end
 
       alias :get_data :given
 
-      def give(_data = {})
-        self.class.new(options.merge(:data => data.merge(_data)))
-      end
-
-      alias :add_scope :give
-      alias :add_data :give
-
-      def give!(_data = {})
-        @data = data.merge(_data)
+      def give! *args
+        dpc.give! *args
         return self
       end
 
@@ -249,20 +75,156 @@ module DataProvider
 
       private
 
-      def missing_provider
-        # byebug
-        @missing_provider
+      def missing_provider *args
+        dpc.missing_provider *args
       end
 
-      def scopes
-        @scopes || []
+      def scoped_take *args
+        dpc.scoped_take *args
       end
 
-      def scope
-        scopes.last || []
+      def scope *args
+        dpc.scope *args
+      end
+
+      def scopes *args
+        dpc.scopes *args
+      end
+
+      def provider_stack *args
+        dpc.provider_stack *args
+      end
+
+      def provider_id *args
+        dpc.provider_id *args
+      end
+    end
+
+    module ClassMethods
+      def data_provider_container
+        @data_provider_container ||= DataProvider::Container.new
+      end
+
+      alias :dpc :data_provider_container
+
+      # can't copy self on a class-level
+      def give *args
+        dpc.give! *args
+        return self
+      end
+
+      # alias :give :give!
+      alias :add_scope :give
+      alias :add_data :give
+
+      def add! _module
+        if _module.is_a?(DataProvider::Container)
+          dpc.add!(_module)
+        else
+          dpc.add!(_module.dpc)
+        end
+
+        include _module
+        return self
+      end
+
+      def add_scoped! _module, options = {}
+        if _module.is_a?(DataProvider::Container)
+          dpc.add_scoped!(_module, options) 
+        else
+          dpc.add_scoped! _module.dpc, options
+        end
+
+        include _module
+        return self
+      end
+
+      # classes/modules can't be cloned, so add behave just like add!
+      alias :add :add!
+      alias :add_scoped :add_scoped!
+    end # module ClassMethods
+
+
+    module InstanceMethods
+
+      attr_reader :options
+
+      def initialize(opts = {})
+        @options = opts.is_a?(Hash) ? opts : {}
+        dpc.give!(options[:data]) if options[:data].is_a?(Hash)
+      end
+
+      def logger
+        @logger ||= options[:logger] || Logger.new(STDOUT).tap do |lger|
+          lger.level = Logger::WARN
+        end
+      end
+
+      def data_provider_container
+        @data_provider_container ||= options[:dpc] || DataProvider::Container.new.tap do |c|
+          # automatically adopt all class-level providers/provides/data
+          c.add! self.class.dpc
+        end
+      end
+
+      alias :dpc :data_provider_container
+
+      def add _module
+        if _module.is_a?(DataProvider::Container)
+          _dpc = _module
+        else
+          _dpc = _module.dpc
+          self.class.include _module # todo: make optional?
+        end
+
+        self.class.new(options.merge({
+          :data => nil,
+          :dpc => dpc.add(_dpc)
+        }))
+      end
+
+      def add_scoped _module, options = {}
+        if _module.is_a?(DataProvider::Container)
+          _dpc = _module
+        else
+          _dpc = _module.dpc
+          self.class.include _module # todo: make optional?
+        end
+
+        self.class.new(options.merge({
+          :data => nil,
+          :dpc => dpc.add_scoped(_dpc, :scope => options[:scope])
+        }))
+      end
+
+      def give *args
+        self.class.new(options.merge(:data => nil, :dpc => self.dpc.give(*args)))
+      end
+
+      alias :add_scope :give
+      alias :add_data :give
+
+      def add! _module
+        if _module.is_a?(DataProvider::Container)
+          dpc.add!(_module)
+        else
+          dpc.add!(_module.dpc)
+          self.class.include _module
+        end
+        
+        return self
+      end
+
+      def add_scoped! _module, options = {}
+        if _module.is_a?(DataProvider::Container)
+          dpc.add_scoped!(_module, options) 
+        else
+          dpc.add_scoped! _module.dpc, options
+          self.class.include _module
+        end
+        
+        return self
       end
     end # module InstanceMethods
-
   end # module Base
-
 end # module DataProvider

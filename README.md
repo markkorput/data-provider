@@ -71,9 +71,9 @@ product_provider.take(:discount_price) # => TypeError (discount data not given,)
 discounted_provider = product_provider.add_data(discount: 3.0) # returns a new instance of the same provider class
 discounted_provider.take(:discount_price) # => 14.99
 product_provider.take(:discount_price) # => TypeError (this instance didn't get the new data)
-product_provider.add_date!(discount: 2) # => Updates this instance instead of creating a new one
+product_provider.add_data!(discount: 2) # => Updates this instance instead of creating a new one
 product_provider.take(:discount_price) # => 15.99
-product_provider.add_date!(discount: 4).take(:discount_price) #=> 13.99
+product_provider.add_data!(discount: 4).take(:discount_price) #=> 13.99
 ```
 
 Providers can be defined in a module and added to a provider class using the add class-method (not using include!)

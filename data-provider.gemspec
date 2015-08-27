@@ -1,9 +1,6 @@
-GEM_NAME="data-provider"
-PKG_VERSION='0.1.0'
-
 Gem::Specification.new do |s|
-  s.name = GEM_NAME
-  s.version = PKG_VERSION
+  s.name = "data-provider"
+  s.version = '0.1.0'
   s.files = `git ls-files`.split($/)
   s.executables = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
 
