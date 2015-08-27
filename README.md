@@ -1,6 +1,8 @@
 # data-provider
 Ruby gem that provides a set of classes to build consistent data interfaces
 
+[![Build Status](https://travis-ci.org/markkorput/data-provider.svg)](https://travis-ci.org/markkorput/data-provider)
+
 ## Installation
 
 Rubygems:
