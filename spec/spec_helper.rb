@@ -5,8 +5,15 @@
 
 require 'rspec'
 
+require 'logger'
+
+begin
+  require 'byebug'
+rescue LoadError => e
+  Logger.new(STDOUT).warn("Could not load byebug, continuing without it")
+end
+
 CURRENT_DIR=File.dirname(__FILE__)
 $: << File.expand_path(CURRENT_DIR + "/../lib")
 
 require 'data_provider'
-require 'byebug'

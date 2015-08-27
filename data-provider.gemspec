@@ -4,11 +4,12 @@ Gem::Specification.new do |s|
   s.files = `git ls-files`.split($/)
   s.executables = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
 
-  s.add_development_dependency 'rspec'
+  s.add_development_dependency 'rake', '~> 10.1'
+  s.add_development_dependency 'rspec', '~> 3.3'
 
   s.author = "Mark van de Korput"
   s.email = "dr.theman@gmail.com"
-  s.date = '2015-07-14'
+  s.date = '2015-08-27'
   s.description = %q{A library of Ruby classes to help create consistent data interfaces}
   s.summary = %q{A library of Ruby classes to help create consistent data interfaces}
   s.homepage = %q{https://github.com/markkorput/data-provider}
