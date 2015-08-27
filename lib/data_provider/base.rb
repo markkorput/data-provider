@@ -174,7 +174,9 @@ module DataProvider
           _dpc = _module
         else
           _dpc = _module.dpc
-          self.class.include _module # todo: make optional?
+          self.class.class_eval do
+            include _module # todo: make optional?
+          end
         end
 
         self.class.new(options.merge({
@@ -188,7 +190,9 @@ module DataProvider
           _dpc = _module
         else
           _dpc = _module.dpc
-          self.class.include _module # todo: make optional?
+          self.class.class_eval do
+            include _module # todo: make optional?
+          end
         end
 
         self.class.new(options.merge({
@@ -209,7 +213,9 @@ module DataProvider
           dpc.add!(_module)
         else
           dpc.add!(_module.dpc)
-          self.class.include _module
+          self.class.class_eval do
+            include _module
+          end
         end
         
         return self
@@ -220,7 +226,9 @@ module DataProvider
           dpc.add_scoped!(_module, options) 
         else
           dpc.add_scoped! _module.dpc, options
-          self.class.include _module
+          self.class.class_eval do
+            include _module
+          end
         end
         
         return self
