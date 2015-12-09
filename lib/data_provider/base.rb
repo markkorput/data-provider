@@ -100,7 +100,7 @@ module DataProvider
       end
 
       def take_super
-        dpc.take_super
+        dpc.take_super(:scope => self)
       end
     end
 

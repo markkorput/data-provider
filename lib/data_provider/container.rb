@@ -133,8 +133,8 @@ module DataProvider
 
     # take_super is only meant to be called form inside a provider
     # returns the result of next provider with the same ID
-    def take_super
-      take(provider_id, :skip => current_skip + 1)
+    def take_super(opts = {})
+      take(provider_id, opts.merge(:skip => current_skip + 1))
     end
 
     #

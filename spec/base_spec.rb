@@ -820,6 +820,13 @@ describe DataProvider::Base do
     end
 
     describe "#take_super" do
+      module HelloExtension
+        include DataProvider::Base
+        provider :new do
+          'Hello!'
+        end
+      end
+
       let(:instance){
         Class.new(Object) do
           include DataProvider::Base
@@ -828,6 +835,7 @@ describe DataProvider::Base do
           end
 
           provider :name do
+            add HelloExtension
             'Bob'
           end
 
@@ -838,7 +846,12 @@ describe DataProvider::Base do
       }
 
       it "gives the result of the previous provider with the same name" do
-        expect(instance.take(:name)).to eq '[super] Bob'
+        expect{
+          expect(instance.take(:name)).to eq '[super] Bob'
+        # NoMethodError happened when the take_super accidentally got executed inside
+        # the container's instance scope instead of the object instance scope
+        }.to_not raise_error
+
         instance.provider :name do
           "[ultra] #{take_super}"
         end
