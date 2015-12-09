@@ -98,6 +98,10 @@ module DataProvider
       def provider_id *args
         dpc.provider_id *args
       end
+
+      def take_super
+        dpc.take_super(:scope => self)
+      end
     end
 
     module ClassMethods

@@ -795,8 +795,12 @@ describe DataProvider::Base do
         end
       }
 
+      it "gives Provider objects" do
+        expect(instance.take(:one).map(&:class)).to eq [DataProvider::Provider]*2
+      end
+
       it "gives the provider's callstack" do
-        expect(instance.take(:one)).to eq [:one, :two]
+        expect(instance.take(:one).map(&:id)).to eq [:one, :two]
       end
     end
 
@@ -812,6 +816,55 @@ describe DataProvider::Base do
 
       it "give the provider's own id" do
         expect(instance.take(:narcissist)).to eq :narcissist
+      end
+    end
+
+    describe "#take_super" do
+      module HelloExtension
+        include DataProvider::Base
+        provider :new do
+          'Hello!'
+        end
+      end
+
+      let(:instance){
+        Class.new(Object) do
+          include DataProvider::Base
+          provider :name do
+            'Arno'
+          end
+
+          provider :name do
+            add HelloExtension
+            'Bob'
+          end
+
+          provider :name do
+            "[super] #{take_super}"
+          end
+        end
+      }
+
+      it "gives the result of the previous provider with the same name" do
+        expect{
+          expect(instance.take(:name)).to eq '[super] Bob'
+        # NoMethodError happened when the take_super accidentally got executed inside
+        # the container's instance scope instead of the object instance scope
+        }.to_not raise_error
+
+        instance.provider :name do
+          "[ultra] #{take_super}"
+        end
+
+        expect(instance.take(:name)).to eq '[ultra] [super] Bob'
+      end
+
+      it "raises the ProviderMissingException if there is no older provider with the same ID" do
+        instance.provider :age do
+          take_super
+        end
+
+        expect{instance.take(:age)}.to raise_error(DataProvider::ProviderMissingException)
       end
     end
   end

@@ -75,16 +75,18 @@ module DataProvider
       logger.debug "DataProvider::Container#take with id: #{id.inspect}"
 
       # first try the simple providers
-      if provides.has_key?(id)
+      if provides.has_key?(id) && opts[:skip].nil?
         provider = provides[id]
         return provider.is_a?(Proc) ? provider.call : provider
       end
 
       # try to get a provider object
-      provider = get_provider(id)
+      provider = get_provider(id, :skip => opts[:skip])
       if provider
-        @stack = (@stack || []) + [id]
+        @stack = (@stack || []) + [provider]
+        @skip_stack = (@skip_stack || []) + [opts[:skip].to_i]
         result = (opts[:scope] || self).instance_eval(&provider.block) 
+        @skip_stack.pop
         @stack.pop
         # execute provider object's block within the scope of self
         return result
@@ -93,10 +95,12 @@ module DataProvider
       # try to get a scoped provider object
       if scope.length > 0
         scoped_id = [scope, id].flatten
-        provider = get_provider(scoped_id)
+        provider = get_provider(scoped_id, :skip => opts[:skip])
         if provider
-          @stack = (@stack || []) + [scoped_id]
+          @stack = (@stack || []) + [provider]
+          @skip_stack = (@skip_stack || []) + [opts[:skip].to_i]
           result = (opts[:scope] || self).instance_eval(&provider.block) 
+          @skip_stack.pop
           @stack.pop
           # execute provider object's block within the scope of self
           return result
@@ -108,8 +112,10 @@ module DataProvider
         # temporarily set the @missing_provider instance variable, so the
         # fallback provider can use it through the missing_provider private method
         @missing_provider = id
-        @stack = (@stack || []) + [id]
+        @stack = (@stack || []) + [provider]
+        @skip_stack = (@skip_stack || []) + [opts[:skip].to_i]
         result = (opts[:scope] || self).instance_eval(&provider.block) # provider.block.call # with the block.call method the provider can't access private methods like missing_provider
+        @skip_stack.pop
         @stack.pop # = nil
         @missing_provider = nil
         return result
@@ -123,6 +129,12 @@ module DataProvider
       return take(id, opts) if self.has_provider?(id) || self.fallback_provider?
       logger.debug "Try for missing provider: #{id.inspect}"
       return nil
+    end
+
+    # take_super is only meant to be called form inside a provider
+    # returns the result of next provider with the same ID
+    def take_super(opts = {})
+      take(provider_id, opts.merge(:skip => current_skip + 1))
     end
 
     #
@@ -239,16 +251,24 @@ module DataProvider
       (@stack || []).clone
     end
 
-    def provider_id
+    def current_provider
       provider_stack.last
     end
 
+    def provider_id
+      current_provider ? current_provider.id : nil
+    end
+
     def scopes
-      provider_stack.map{|provider_id| provider_id.is_a?(Array) ? provider_id[0..-2] : []}
+      provider_stack.map{|provider| provider.id.is_a?(Array) ? provider.id[0..-2] : []}
     end
 
     def scope
       scopes.last || []
+    end
+
+    def current_skip
+      (@skip_stack || []).last.to_i
     end
 
   private
@@ -269,8 +289,14 @@ module DataProvider
     end
 
     # returns the requested provider as a Provider object
-    def get_provider(id)
-      args = providers.find{|args| args.first == id}
+    def get_provider(id, opts = {})
+      if opts[:skip]
+        matches = providers.find_all{|args| args.first == id}
+        args = matches[opts[:skip].to_i]
+      else
+        args = providers.find{|args| args.first == id}
+      end
+
       return args.nil? ? nil : Provider.new(*args)
     end
   end # class Container

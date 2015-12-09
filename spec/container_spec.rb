@@ -617,9 +617,13 @@ describe DataProvider::Container do
       end
     }
 
+    it "gives Provider objects" do
+      expect(container.take(:a).map(&:class)).to eq [DataProvider::Provider]*4
+    end
+
     it "gives providers an array resembling the current provider 'callstack'" do
-      expect(container.take(:a)).to eq [:a, :b, ['prefix', :c], ['prefix', :d]]
-      expect(container.take(:b)).to eq [:b, ['prefix', :c], ['prefix', :d]]
+      expect(container.take(:a).map(&:id)).to eq [:a, :b, ['prefix', :c], ['prefix', :d]]
+      expect(container.take(:b).map(&:id)).to eq [:b, ['prefix', :c], ['prefix', :d]]
     end
   end
 
@@ -646,7 +650,7 @@ describe DataProvider::Container do
       expect(container.take(['prefix', :d])).to eq ['prefix', :d]
     end
 
-    it "gives nil when called fmor outside a provider" do
+    it "gives nil when called from outside a provider" do
       expect(container.provider_id).to eq nil
     end
   end
@@ -788,5 +792,53 @@ describe DataProvider::Container do
 
       expect(c.fallback_provider?).to eq true
     end
+  end
+
+  describe "#take_super" do
+    let(:container){
+      DataProvider::Container.new.tap do |c|
+        c.provider :value do
+          "original"
+        end
+      end
+    }
+
+    let(:extension1){
+      DataProvider::Container.new.tap do |c|
+        c.provider :value do
+          "new"
+        end
+      end
+    }
+
+    let(:extension2){
+      DataProvider::Container.new.tap do |c|
+        c.provider :value do
+          "#{take_super} [extended]"
+        end
+      end
+    }
+
+    it "gives the result of the provider with the same identifier that was added before it" do
+      c = container.add extension2
+      expect(c.take(:value)).to eq 'original [extended]'
+      c.add! extension1
+      expect(c.take(:value)).to eq 'new'
+      c.add! extension2
+      expect(c.take(:value)).to eq 'new [extended]'
+      c.add! extension2
+      expect(c.take(:value)).to eq 'new [extended] [extended]'
+    end
+
+    it "raises the ProviderMissingException if there is no older provider with the same ID" do
+      instance = DataProvider::Container.new.tap do |c|
+        c.provider :whatever do
+          take_super
+        end
+      end
+
+      expect{instance.take(:whatever)}.to raise_error(DataProvider::ProviderMissingException)
+    end
+
   end
 end
