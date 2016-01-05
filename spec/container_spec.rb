@@ -89,10 +89,15 @@ describe DataProvider::Container do
 
       it "lets the owner specify a priority level for the provider" do
         c = DataProvider::Container.new
-        c.provider(:foo, :priority => 1){ 'bar' } # only one at this point
+        c.provider(:foo, :priority => 10){ 'bar' } # only one at this point
         expect(c.take(:foo)).to eq 'bar'
         c.provider(:foo){ 'cafe' } # last added, but default priority is 0, so lower prio
         expect(c.take(:foo)).to eq 'bar'
+        c.provider(:foo, :priority => 5){ 'dive' } # lower explicit prio
+        expect(c.take(:foo)).to eq 'bar'
+        c.provider(:foo, :priority => 11){ 'lounge' } # higher explicit prio
+        expect(c.take(:foo)).to eq 'lounge'
+        
       end
     end
   end
@@ -875,6 +880,16 @@ describe DataProvider::Container do
       end
 
       expect{instance.take(:whatever)}.to raise_error(DataProvider::ProviderMissingException)
+    end
+
+    it "plays nice with the :priority option" do
+      c = DataProvider::Container.new
+      c.provider(:foo){ 'bar0' }
+      expect(c.take(:foo)).to eq 'bar0'
+      c.provider(:foo, :priority => 5){ 'bar5' }
+      expect(c.take(:foo)).to eq 'bar5'
+      c.provider(:foo, :priority => 3){ 'bar3' }
+      expect(c.take(:foo)).to eq 'bar5'
     end
   end
 end
