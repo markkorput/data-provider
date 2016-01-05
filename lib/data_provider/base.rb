@@ -143,7 +143,7 @@ module DataProvider
         return self
       end
 
-      # classes/modules can't be cloned, so add behave just like add!
+      # classes/modules can't be cloned, so add behaves just like add!
       alias :add :add!
       alias :add_scoped :add_scoped!
     end # module ClassMethods

@@ -16,5 +16,8 @@ module DataProvider
       [options[:requires]].flatten.compact
     end
 
+    def priority
+      options[:priority]
+    end
   end # module Provider
 end # module DataProvider
