@@ -27,6 +27,10 @@ module DataProvider
       end
     end
 
+    def default_priority
+      options[:default_priority].to_i
+    end
+
     def provider identifier, opts = {}, &block
       add_provider(identifier, opts, block_given? ? block : nil)
     end
@@ -290,12 +294,18 @@ module DataProvider
 
     # returns the requested provider as a Provider object
     def get_provider(id, opts = {})
-      if opts[:skip]
-        matches = providers.find_all{|args| args.first == id}
-        args = matches[opts[:skip].to_i]
-      else
-        args = providers.find{|args| args.first == id}
+      # get all matching providers
+      matching_provider_args = providers.find_all{|args| args.first == id}
+      # sort providers on priority, form high to low
+      matching_provider_args.sort! do |args_a, args_b|
+        # we want to sort from high priority to low, but providers with the same priority level
+        # should stay in the same order because among those, the last one added has the highest priority
+        # (last added means first in the array, since they are pushed into the beginning of the array)
+        (Provider.new(*args_b).priority || self.default_priority) <=> (Provider.new(*args_a).priority || self.default_priority)
       end
+      # if no skip option is given, opts[:skip].to_i will result in zero, so it'll grab thefirst from the array
+      # if the array is empty, args will always turn out nil
+      args = matching_provider_args[opts[:skip].to_i]
 
       return args.nil? ? nil : Provider.new(*args)
     end

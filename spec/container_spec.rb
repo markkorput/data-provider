@@ -1,7 +1,7 @@
 require File.dirname(__FILE__) + '/spec_helper'
 
 describe DataProvider::Container do
-    # Example implementation of DataProvider::Base
+  # Example implementation of DataProvider::Base
   let(:container){
     DataProvider::Container.new.tap do |container|
       container.provider :sum, :requires => [:array] do
@@ -57,6 +57,43 @@ describe DataProvider::Container do
       expect(container.respond_to?(:has_provider?)).to eq true
       expect(container.has_provider?(:sum)).to eq true
       expect(container.has_provider?(:divid)).to eq false
+    end
+  end
+
+  describe "#default_priority" do
+    it "gives the default priority for providers" do
+      expect(DataProvider::Container.new.default_priority).to eq 0 # zero is the default default
+    end
+
+    describe ":default_priority" do
+      it "lets the owner specify the default_priority at initialize-time" do
+        expect(DataProvider::Container.new(:default_priority => 100).default_priority).to eq 100
+      end
+    end
+  end
+
+  describe "#provider" do
+    it "lets the owner add a new provider to the container" do
+      c = DataProvider::Container.new
+      expect(c.has_provider?(:no_yet)).to be false
+    end
+
+    describe ":priority" do
+      it "by default -without explicitly specified priorities- gives highest priority to the latest added provider" do
+        c = DataProvider::Container.new
+        c.provider(:foo){ 'bar' } # only one at this point
+        expect(c.take(:foo)).to eq 'bar'
+        c.provider(:foo){ 'cafe' } # last added, so get highest priority
+        expect(c.take(:foo)).to eq 'cafe'
+      end
+
+      it "lets the owner specify a priority level for the provider" do
+        c = DataProvider::Container.new
+        c.provider(:foo, :priority => 1){ 'bar' } # only one at this point
+        expect(c.take(:foo)).to eq 'bar'
+        c.provider(:foo){ 'cafe' } # last added, but default priority is 0, so lower prio
+        expect(c.take(:foo)).to eq 'bar'
+      end
     end
   end
 
@@ -839,6 +876,5 @@ describe DataProvider::Container do
 
       expect{instance.take(:whatever)}.to raise_error(DataProvider::ProviderMissingException)
     end
-
   end
 end
