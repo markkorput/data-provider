@@ -154,3 +154,68 @@ describe "Exceptions" do
     expect { provider.take(:nomethod) }.to raise_error(NameError)
   end
 end
+
+describe "#provider" do
+  describe ":priority" do
+
+    module PriorityHighModule
+      include DataProvider::Base
+
+      provider :foo, :priority => 12 do
+        'bar12'
+      end
+    end
+
+    module PriorityLowModule
+      include DataProvider::Base
+
+      provider :foo, :priority => 2 do
+        'bar2'
+      end
+    end
+
+    class PriorityClass
+      include DataProvider::Base
+
+      provider :foo do
+        'bar0'
+      end
+
+      provider :foo, :priority => 10 do
+        'bar10'
+      end
+
+      provider :foo, :priority => 5 do
+        'bar5'
+      end
+    end
+
+    class PrioritizedClass
+      include DataProvider::Base
+      add PriorityLowModule
+      add PriorityHighModule
+      provider :foo, :priority => 10 do
+        'bar10'
+      end
+    end
+
+    class UnprioritizedClass
+      include DataProvider::Base
+
+      provider :foo, :priority => 10 do
+        'bar10'
+      end
+
+      add PriorityHighModule
+      add PriorityLowModule
+    end
+
+    it "lets the owner specify a priority level or the provider" do
+      instance = PriorityClass.new
+      expect(instance.take(:foo)).to eq 'bar10'
+      expect(PrioritizedClass.new.take(:foo)).to eq 'bar12'
+      expect(UnprioritizedClass.new.take(:foo)).to eq 'bar12'
+    end
+
+  end # :priority
+end # #provider
