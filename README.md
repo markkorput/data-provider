@@ -2,6 +2,7 @@
 Ruby gem that provides a set of classes to build consistent data interfaces
 
 [![Build Status](https://travis-ci.org/markkorput/data-provider.svg)](https://travis-ci.org/markkorput/data-provider)
+[![Code Health](https://codeclimate.com/github/markkorput/data-provider/badges/gpa.svg)](https://codeclimate.com/github/markkorput/data-provider) 
 
 ## Installation
 
@@ -150,7 +151,3 @@ catalog.take([:music, :album, :title]) # => 'Reinventing Axle Rose'
 catalog.take([:music, :album, :band, :hometown]) # => 'Gainesville, FL'
 catalog.take([:music, :album, :bandname]) # => 'AGAINST ME!"
 ```
-
-
-
-	
