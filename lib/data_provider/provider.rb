@@ -19,5 +19,9 @@ module DataProvider
     def priority
       options[:priority]
     end
+
+    def force_build_node?
+      options[:force_build] == true
+    end
   end # module Provider
 end # module DataProvider

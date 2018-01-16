@@ -39,9 +39,28 @@ module DataProvider
       (provides.keys.find{|k| k == identifier} || get_provider(identifier)) != nil
     end
 
-    def has_providers_with_scope?(args)
+    def providers_with_scope(args)
       scope = args.is_a?(Array) ? args : [args]
-      provider_identifiers.find{|id| id.is_a?(Array) && id.length > scope.length && id[0..(scope.length-1)] == scope} != nil
+      provider_identifiers.select{|id| id.is_a?(Array) && id.length > scope.length && id[0..(scope.length-1)] == scope}
+    end
+
+    def has_providers_with_scope?(args)
+       providers_with_scope(args).any?
+    end
+
+    def has_filled_providers_with_scope?(args, opts)
+      return false unless has_providers_with_scope?(args)
+      providers_with_scope(args).sort_by{ |prov_id| prov_id.size }.each do |provider_id|
+        content_data = try_take(provider_id, opts)
+        return true if !content_data.nil? && !content_data.try(:skip?)
+      end
+      false
+    end
+
+    def force_build_node?(*args)
+      scope = args.is_a?(Array) ? args.flatten : [args]
+      provider = get_provider(scope)
+      provider && provider.force_build_node?
     end
 
     def provider_identifiers

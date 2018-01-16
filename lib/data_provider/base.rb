@@ -33,12 +33,24 @@ module DataProvider
         dpc.has_provider? *args
       end
 
+      def providers_with_scope(*args)
+        dpc.providers_with_scope(*args)
+      end
+
       def has_providers_with_scope?(*args)
         dpc.has_providers_with_scope?(*args)
       end
 
+      def has_filled_providers_with_scope?(*args)
+        dpc.has_filled_providers_with_scope?(*args, scope: self)
+      end
+
       def fallback_provider?
         dpc.fallback_provider?
+      end
+
+      def force_build_node?(*args)
+        dpc.force_build_node?(*args)
       end
 
       def provider_missing *args, &block
