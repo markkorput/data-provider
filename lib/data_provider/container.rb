@@ -51,7 +51,7 @@ module DataProvider
     def has_filled_providers_with_scope?(current_stack, opts)
       if opts[:include_current] == true
         current_content_data = try_take(current_stack, opts)
-        return true if !current_content_data.nil? && !(current_content_data.is_a?(XsdPopulator::Informer) && current_content_data.skip?)
+        return true if !current_content_data.nil? && !current_content_data.try(:empty?) && !(current_content_data.is_a?(XsdPopulator::Informer) && current_content_data.skip?)
       end
 
       return false unless has_providers_with_scope?(current_stack)
