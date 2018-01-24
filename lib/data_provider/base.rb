@@ -41,8 +41,9 @@ module DataProvider
         dpc.has_providers_with_scope?(*args)
       end
 
-      def has_filled_providers_with_scope?(*args)
-        dpc.has_filled_providers_with_scope?(*args, scope: self)
+      def has_filled_providers_with_scope?(current_stack, opts = {})
+        opts.merge!(scope: self)
+        dpc.has_filled_providers_with_scope?(current_stack, opts)
       end
 
       def fallback_provider?
