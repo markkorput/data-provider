@@ -1,5 +1,5 @@
 Gem::Specification.new do |s|
-  s.name = "data-provider"
+  s.name = "data-provider-fuga"
   s.version = '0.2.4'
   s.files = `git ls-files`.split($/)
   s.executables = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
