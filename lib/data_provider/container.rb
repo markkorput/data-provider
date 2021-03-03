@@ -58,6 +58,8 @@ module DataProvider
       return false unless has_providers_with_scope?(current_stack)
 
       providers_with_scope(current_stack).sort_by{ |prov_id| prov_id.size }.each do |provider_id|
+        return false if provider_id.last.is_a?(Symbol) # Ignore private symbolized providers for this check.
+
         content_data = try_take(provider_id, opts)
         return true if !content_data.nil? && !(content_data.is_a?(XsdPopulator::Informer) && content_data.skip?) && (content_data.respond_to?(:any?) ? content_data.any? : true)
       end
